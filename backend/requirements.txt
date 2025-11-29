@@ -1,0 +1,12 @@
+flask==2.3.3
+flask-cors==4.0.0
+flask-jwt-extended==4.5.3
+flask-sqlalchemy==3.1.1
+flask-migrate==4.0.5
+mysql-connector-python==8.1.0
+pymysql==1.1.0
+bcrypt==4.0.1
+python-dotenv==1.0.0
+marshmallow==3.20.1
+flask-marshmallow==0.15.0
+marshmallow-sqlalchemy==0.29.0
