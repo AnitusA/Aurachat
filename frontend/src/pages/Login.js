@@ -10,7 +10,7 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { login, demoLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -169,6 +169,37 @@ const Login = () => {
               )}
             </button>
           </form>
+
+          {/* Divider */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            margin: '1rem 0',
+            gap: '1rem'
+          }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>or</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+          </div>
+
+          {/* Demo Login Button */}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              const result = demoLogin(formData.username || 'Guest');
+              if (result.success) {
+                navigate(from, { replace: true });
+              }
+            }}
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              marginBottom: '1rem'
+            }}
+          >
+            🎮 Continue as Guest (No Backend)
+          </button>
 
           {/* Footer */}
           <div className="text-center">

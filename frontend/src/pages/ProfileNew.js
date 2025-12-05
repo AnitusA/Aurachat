@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
@@ -245,8 +245,16 @@ const Profile = () => {
               Joined {formatDate(user.created_at)}
             </p>
 
-            {/* Follow Button */}
-            {!isOwnProfile && (
+            {/* Action Button */}
+            {isOwnProfile ? (
+              <Link 
+                to="/profile/edit"
+                className="btn btn-primary"
+                style={{ textDecoration: 'none' }}
+              >
+                ⚙️ Edit Profile
+              </Link>
+            ) : (
               <button
                 onClick={handleFollow}
                 disabled={isFollowLoading}

@@ -14,11 +14,11 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    full_name = db.Column(db.String(120), nullable=False)
+    profile_pic = db.Column(db.String(200), default='default.jpg')
     bio = db.Column(db.Text)
-    profile_picture = db.Column(db.String(255))
+    is_private = db.Column(db.Boolean, default=False)
+    theme = db.Column(db.String(20), default='light')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
     posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
@@ -60,40 +60,43 @@ class User(db.Model):
         return self.posts.count()
     
     def update_last_seen(self):
-        """Update user's last seen timestamp"""
-        self.last_seen = datetime.utcnow()
-        db.session.commit()
+        """Update user's last seen timestamp - placeholder"""
+        # Last seen functionality not implemented yet
+        pass
     
     def validate_username(self, username):
         """Validate username format"""
         import re
         if not re.match(r'^[a-zA-Z0-9_]+$', username):
-            raise ValueError('Username can only contain letters, numbers, and underscores')
+            raise ValueError("Username can only contain letters, numbers, and underscores")
         if len(username) < 3 or len(username) > 20:
-            raise ValueError('Username must be between 3 and 20 characters')
+            raise ValueError("Username must be between 3 and 20 characters")
     
     def to_dict(self):
+        """Convert user object to dictionary - only user table data"""
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
-            'full_name': self.full_name,
             'bio': self.bio or '',
-            'profile_picture': self.profile_picture,
-            'created_at': self.created_at.isoformat(),
-            'last_seen': self.last_seen.isoformat() if self.last_seen else None,
+            'profile_pic': self.profile_pic or 'default.jpg',
+            'is_private': self.is_private or False,
+            'theme': self.theme or 'light',
+            'created_at': self.created_at.isoformat() if self.created_at else None,
             'followers': self.get_follower_count(),
             'following': self.get_following_count(),
             'posts': self.get_post_count()
         }
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
-    image_url = db.Column(db.String(255))
+    image_url = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # Relationships
@@ -115,8 +118,7 @@ class Post(db.Model):
             'content': self.content,
             'image': self.image_url,
             'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'author': self.author.full_name,
+            'author': self.author.username,
             'author_username': self.author.username,
             'likes': self.get_like_count(),
             'comments': self.get_comment_count(),
@@ -136,7 +138,7 @@ class Comment(db.Model):
             'id': self.id,
             'content': self.content,
             'created_at': self.created_at.isoformat(),
-            'author': self.author.full_name,
+            'author': self.author.username,
             'author_username': self.author.username
         }
 
@@ -149,3 +151,27 @@ class Like(db.Model):
     
     # Ensure a user can only like a post once
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id'),)
+
+
+class Follow(db.Model):
+    __tablename__ = 'follow'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    follower_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    following_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Ensure a user can't follow the same user multiple times
+    __table_args__ = (db.UniqueConstraint('follower_id', 'following_id', name='unique_follow'),)
+    
+    def to_dict(self):
+        """Convert follow object to dictionary for JSON response"""
+        return {
+            'id': self.id,
+            'follower_id': self.follower_id,
+            'following_id': self.following_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+    
+    def __repr__(self):
+        return f'<Follow {self.follower_id} -> {self.following_id}>'

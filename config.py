@@ -1,7 +1,7 @@
 # AuraChat Database Configuration
 MYSQL_HOST = "localhost"
 MYSQL_USER = "root"
-MYSQL_PASSWORD = ""
+MYSQL_PASSWORD = "tn vampire 11"
 DATABASE_NAME = "socialmedia_db"
 
 # Flask Configuration

@@ -1,24 +1,37 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, session
+from functools import wraps
 from app import db
 from app.models import Post, User, Like, Comment
 from datetime import datetime
 
 posts_bp = Blueprint('posts', __name__)
 
+# Login required decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Login required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+def get_current_user_id():
+    return session.get('user_id')
+
+
 @posts_bp.route('/posts', methods=['GET'])
-@jwt_required()
+@login_required
 def get_posts():
     """Get all posts (feed)"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         user = User.query.get(user_id)
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
         # Get posts from users the current user follows, plus their own posts
-        followed_users = [follow.following_id for follow in user.following]
+        followed_users = [u.id for u in user.followed.all()]
         followed_users.append(user_id)
         
         posts = Post.query.filter(Post.user_id.in_(followed_users)).order_by(Post.created_at.desc()).all()
@@ -37,11 +50,11 @@ def get_posts():
 
 
 @posts_bp.route('/posts', methods=['POST'])
-@jwt_required()
+@login_required
 def create_post():
     """Create a new post"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         user = User.query.get(user_id)
         
         if not user:
@@ -72,11 +85,11 @@ def create_post():
 
 
 @posts_bp.route('/posts/<int:post_id>', methods=['GET'])
-@jwt_required()
+@login_required
 def get_post(post_id):
     """Get a specific post"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         user = User.query.get(user_id)
         
         if not user:
@@ -101,11 +114,11 @@ def get_post(post_id):
 
 
 @posts_bp.route('/posts/<int:post_id>', methods=['DELETE'])
-@jwt_required()
+@login_required
 def delete_post(post_id):
     """Delete a post"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         post = Post.query.get(post_id)
         
         if not post:
@@ -125,11 +138,11 @@ def delete_post(post_id):
 
 
 @posts_bp.route('/posts/<int:post_id>/like', methods=['POST'])
-@jwt_required()
+@login_required
 def like_post(post_id):
     """Like or unlike a post"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         user = User.query.get(user_id)
         post = Post.query.get(post_id)
         
@@ -160,11 +173,11 @@ def like_post(post_id):
 
 
 @posts_bp.route('/posts/<int:post_id>/comments', methods=['POST'])
-@jwt_required()
+@login_required
 def add_comment(post_id):
     """Add a comment to a post"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         user = User.query.get(user_id)
         post = Post.query.get(post_id)
         
@@ -199,11 +212,11 @@ def add_comment(post_id):
 
 
 @posts_bp.route('/posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
-@jwt_required()
+@login_required
 def delete_comment(post_id, comment_id):
     """Delete a comment"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         comment = Comment.query.get(comment_id)
         
         if not comment:
@@ -223,11 +236,11 @@ def delete_comment(post_id, comment_id):
 
 
 @posts_bp.route('/users/<int:user_id>/posts', methods=['GET'])
-@jwt_required()
+@login_required
 def get_user_posts(user_id):
     """Get posts from a specific user"""
     try:
-        current_user_id = get_jwt_identity()
+        current_user_id = get_current_user_id()
         target_user = User.query.get(user_id)
         
         if not target_user:

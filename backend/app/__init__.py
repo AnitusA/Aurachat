@@ -1,14 +1,12 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from config import Config
 import os
 
 # Initialize extensions
 db = SQLAlchemy()
-jwt = JWTManager()
 migrate = Migrate()
 
 def create_app(config_class=Config):
@@ -25,28 +23,25 @@ def create_app(config_class=Config):
     
     # Initialize extensions
     db.init_app(app)
-    jwt.init_app(app)
     migrate.init_app(app, db)
     
-    # Configure CORS with proper settings
+    # Configure CORS with proper settings for sessions
     CORS(app, 
          origins=app.config.get('CORS_ORIGINS', ['http://localhost:3000']),
          supports_credentials=True,
-         allow_headers=['Content-Type', 'Authorization'],
-         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+         allow_headers=['Content-Type', 'Authorization', 'Access-Control-Allow-Credentials'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         expose_headers=['Content-Type', 'Authorization'])
     
-    # JWT error handlers
-    @jwt.expired_token_loader
-    def expired_token_callback(jwt_header, jwt_payload):
-        return jsonify({'error': 'Token has expired', 'message': 'Please login again'}), 401
-    
-    @jwt.invalid_token_loader
-    def invalid_token_callback(error):
-        return jsonify({'error': 'Invalid token', 'message': 'Please login again'}), 422
-    
-    @jwt.unauthorized_loader
-    def missing_token_callback(error):
-        return jsonify({'error': 'Authorization token is required', 'message': 'Please login to access this resource'}), 401
+    # Add CORS preflight handler
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = jsonify()
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add('Access-Control-Allow-Headers', "*")
+            response.headers.add('Access-Control-Allow-Methods', "*")
+            return response
     
     # Import models first to register them
     from app.models import User, Post, Like, Comment, Follow
@@ -55,10 +50,21 @@ def create_app(config_class=Config):
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
     from app.routes.posts_new import posts_bp
+    from app.routes.profile import profile_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(users_bp, url_prefix='/api')
     app.register_blueprint(posts_bp, url_prefix='/api')
+    app.register_blueprint(profile_bp, url_prefix='/api')
+    
+    # Add health check endpoint
+    @app.route('/api/health')
+    def health_check():
+        return jsonify({
+            'status': 'healthy',
+            'message': 'AuraChat API is running',
+            'version': '2.0.0'
+        }), 200
     
     # Create tables
     with app.app_context():

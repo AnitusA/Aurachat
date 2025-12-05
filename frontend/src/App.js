@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/ProfileNew';
+import ProfileEdit from './pages/ProfileEdit';
 import Feed from './pages/Feed';
 import './index.css';
 
@@ -38,6 +39,11 @@ function App() {
                 <Route path="/profile/:username" element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile/edit" element={
+                  <ProtectedRoute>
+                    <ProfileEdit />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard" element={

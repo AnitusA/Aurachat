@@ -1,14 +1,28 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, session
+from functools import wraps
 from app import db
 from app.models import User
 import re
 
 auth_bp = Blueprint('auth', __name__)
 
+# Login required decorator (replaces @jwt_required)
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Login required'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Helper to get current user id
+def get_current_user_id():
+    return session.get('user_id')
+
+
 @auth_bp.route('/auth/register', methods=['POST'])
 def register():
-    """User registration endpoint"""
+    """User registration endpoint - stores data in user table"""
     try:
         data = request.get_json()
         
@@ -36,13 +50,13 @@ def register():
         # Check if user already exists
         existing_user = User.query.filter_by(username=data['username']).first()
         if existing_user:
-            return jsonify({'message': 'Username already taken. Please choose a different username or login if this is your account.'}), 409
+            return jsonify({'message': 'Username already taken'}), 409
         
         existing_email = User.query.filter_by(email=data['email']).first()
         if existing_email:
-            return jsonify({'message': 'Email already registered. Please use a different email or login if this is your account.'}), 409
+            return jsonify({'message': 'Email already registered'}), 409
         
-        # Create new user
+        # Create new user - all data stored in user table
         user = User(
             username=data['username'],
             email=data['email'],
@@ -54,12 +68,12 @@ def register():
         db.session.add(user)
         db.session.commit()
         
-        # Create access token
-        access_token = create_access_token(identity=user.id)
+        # Store user_id in session
+        session['user_id'] = user.id
+        session.permanent = True
         
         return jsonify({
             'message': 'User created successfully',
-            'token': access_token,
             'user': user.to_dict()
         }), 201
         
@@ -83,12 +97,12 @@ def login():
         user = User.query.filter_by(username=data['username']).first()
         
         if user and user.check_password(data['password']):
-            # Create access token
-            access_token = create_access_token(identity=user.id)
+            # Store user_id in session
+            session['user_id'] = user.id
+            session.permanent = True
             
             return jsonify({
                 'message': 'Login successful',
-                'token': access_token,
                 'user': user.to_dict()
             }), 200
         else:
@@ -99,11 +113,11 @@ def login():
 
 
 @auth_bp.route('/auth/me', methods=['GET'])
-@jwt_required()
+@login_required
 def get_current_user():
     """Get current user information"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         user = User.query.get(user_id)
         
         if not user:
@@ -116,23 +130,21 @@ def get_current_user():
 
 
 @auth_bp.route('/auth/logout', methods=['POST'])
-@jwt_required()
 def logout():
     """User logout endpoint"""
     try:
-        # In a real application, you might want to blacklist the token
-        # For now, we'll just return a success message
+        session.clear()
         return jsonify({'message': 'Logout successful'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
 @auth_bp.route('/auth/change-password', methods=['POST'])
-@jwt_required()
+@login_required
 def change_password():
     """Change user password"""
     try:
-        user_id = get_jwt_identity()
+        user_id = get_current_user_id()
         data = request.get_json()
         
         if not data.get('current_password') or not data.get('new_password'):

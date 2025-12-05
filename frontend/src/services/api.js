@@ -8,31 +8,16 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important: Send cookies with requests
 });
-
-// Add request interceptor to include auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Add response interceptor for handling common errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 422) {
-      // Token expired, invalid, or missing
-      console.log('Authentication error - clearing tokens');
-      localStorage.removeItem('authToken');
-      // Don't automatically redirect here - let components handle it
+    if (error.response?.status === 401) {
+      // Session expired or not logged in
+      console.log('Authentication error - session may have expired');
     }
     return Promise.reject(error);
   }

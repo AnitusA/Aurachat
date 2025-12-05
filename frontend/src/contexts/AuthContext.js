@@ -14,43 +14,38 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('authToken'));
 
   useEffect(() => {
     // Check if user is logged in on app start
     const initAuth = async () => {
-      const savedToken = localStorage.getItem('authToken');
-      
-      if (savedToken) {
-        try {
-          // Verify token by fetching user data
-          const response = await api.get('/auth/me');
-          setUser(response.data.user);
-          setToken(savedToken);
-        } catch (error) {
-          console.log('Invalid token, logging out');
-          // Clear invalid token
-          localStorage.removeItem('authToken');
-          setUser(null);
-          setToken(null);
-        }
+      // First check for demo user in localStorage
+      const demoUser = localStorage.getItem('demoUser');
+      if (demoUser) {
+        setUser(JSON.parse(demoUser));
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Try to get current user from session
+        const response = await api.get('/auth/me');
+        setUser(response.data.user);
+      } catch (error) {
+        // Not logged in or session expired
+        console.log('No active session');
+        setUser(null);
       }
       setLoading(false);
     };
 
     initAuth();
-  }, []); // Empty dependency array is correct here
+  }, []);
 
   const login = async (username, password) => {
     try {
       const response = await api.post('/auth/login', { username, password });
-      const { token: authToken, user: userData } = response.data;
-      
-      setUser(userData);
-      setToken(authToken);
-      localStorage.setItem('authToken', authToken);
-      
-      return { success: true, user: userData };
+      setUser(response.data.user);
+      return { success: true, user: response.data.user };
     } catch (error) {
       console.error('Login error:', error);
       return { 
@@ -63,13 +58,8 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     try {
       const response = await api.post('/auth/register', { username, email, password });
-      const { token: authToken, user } = response.data;
-      
-      setUser(user);
-      setToken(authToken);
-      localStorage.setItem('authToken', authToken);
-      
-      return { success: true, user };
+      setUser(response.data.user);
+      return { success: true, user: response.data.user };
     } catch (error) {
       console.error('Registration error:', error);
       return { 
@@ -79,16 +69,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('authToken');
-    // Also call API logout if token exists
-    if (token) {
-      api.post('/auth/logout').catch(() => {
-        // Ignore logout API errors
-      });
+  const logout = async () => {
+    // Clear demo user if exists
+    localStorage.removeItem('demoUser');
+    
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
     }
+    setUser(null);
+  };
+
+  // Demo login - no backend required
+  const demoLogin = (username) => {
+    const demoUser = {
+      id: 'demo_' + Date.now(),
+      username: username || 'DemoUser',
+      email: (username || 'demo') + '@demo.local',
+      bio: 'This is a demo account',
+      profile_pic: 'default.jpg',
+      theme: 'light',
+      isDemo: true
+    };
+    localStorage.setItem('demoUser', JSON.stringify(demoUser));
+    setUser(demoUser);
+    return { success: true, user: demoUser };
   };
 
   const updateUser = (updatedUserData) => {
@@ -96,16 +102,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAuthenticated = () => {
-    return !!token && !!user;
+    return !!user;
   };
 
   const value = {
     user,
-    token,
     loading,
     login,
     register,
     logout,
+    demoLogin,
     updateUser,
     isAuthenticated
   };

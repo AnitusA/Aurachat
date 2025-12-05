@@ -1,42 +1,46 @@
 #!/usr/bin/env python3
 """
-Database migration script to update avatar storage from URL to binary data.
-Run this script to migrate existing avatar URLs to the new binary storage system.
+Database migration script for AuraChat.
+Run this script to perform database migrations.
 """
 
 import os
 import sys
-import requests
-from datetime import datetime
 
 # Add the parent directory to Python path to import our app
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app, db
-from app.models import UserProfile
-from PIL import Image
-import io
+from app.models import User
 
-def migrate_avatars():
-    """Migrate existing avatar URLs to binary data storage"""
+def update_schema():
+    """Update database schema with any new columns"""
     app = create_app()
     
     with app.app_context():
-        print("Starting avatar migration...")
+        print("Checking database schema...")
         
-        # First, add the new columns if they don't exist
         try:
-            # Check if we need to add the new columns
+            # Check if we need to add new columns to user table
             inspector = db.inspect(db.engine)
-            columns = [col['name'] for col in inspector.get_columns('user_profiles')]
+            columns = [col['name'] for col in inspector.get_columns('user')]
             
-            if 'avatar_data' not in columns:
-                print("Adding avatar_data column...")
-                db.engine.execute('ALTER TABLE user_profiles ADD COLUMN avatar_data LONGBLOB')
+            # Add any missing columns
+            if 'bio' not in columns:
+                print("Adding bio column...")
+                db.engine.execute('ALTER TABLE user ADD COLUMN bio TEXT')
             
-            if 'avatar_mimetype' not in columns:
-                print("Adding avatar_mimetype column...")
-                db.engine.execute('ALTER TABLE user_profiles ADD COLUMN avatar_mimetype VARCHAR(50)')
+            if 'profile_pic' not in columns:
+                print("Adding profile_pic column...")
+                db.engine.execute("ALTER TABLE user ADD COLUMN profile_pic VARCHAR(200) DEFAULT 'default.jpg'")
+            
+            if 'is_private' not in columns:
+                print("Adding is_private column...")
+                db.engine.execute('ALTER TABLE user ADD COLUMN is_private BOOLEAN DEFAULT FALSE')
+            
+            if 'theme' not in columns:
+                print("Adding theme column...")
+                db.engine.execute("ALTER TABLE user ADD COLUMN theme VARCHAR(20) DEFAULT 'light'")
                 
             print("Database schema updated successfully!")
             
@@ -44,10 +48,7 @@ def migrate_avatars():
             print(f"Error updating schema: {e}")
             return False
         
-        # Note: Since we're implementing a new system, we don't need to migrate old data
-        # The old avatar_url column can be dropped later if it exists
-        
-        print("Avatar migration completed successfully!")
+        print("Migration completed successfully!")
         return True
 
 def recreate_tables():
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     choice = input("Choose migration option:\n1. Update schema (add new columns)\n2. Recreate all tables\nEnter choice (1 or 2): ")
     
     if choice == '1':
-        if migrate_avatars():
+        if update_schema():
             print("\n✅ Migration completed successfully!")
         else:
             print("\n❌ Migration failed!")

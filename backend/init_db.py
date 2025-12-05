@@ -12,7 +12,7 @@ backend_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, backend_dir)
 
 from app import create_app, db
-from app.models import User, UserProfile
+from app.models import User
 
 def init_database():
     """Initialize the database with tables"""
