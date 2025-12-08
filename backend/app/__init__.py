@@ -45,18 +45,20 @@ def create_app(config_class=Config):
             return response
     
     # Import models first to register them
-    from app.models import User, Post, Like, Comment, Follow
+    from app.models import User, Post, Like, Comment, Follow, Message
     
     # Register blueprints
     from app.routes.auth import auth_bp
     from app.routes.users import users_bp
     from app.routes.posts_new import posts_bp
     from app.routes.profile import profile_bp
+    from app.routes.messages import messages_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(users_bp, url_prefix='/api')
     app.register_blueprint(posts_bp, url_prefix='/api')
     app.register_blueprint(profile_bp, url_prefix='/api')
+    app.register_blueprint(messages_bp, url_prefix='/api')
     
     # Add health check endpoint
     @app.route('/api/health')

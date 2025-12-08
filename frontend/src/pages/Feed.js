@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import api from '../services/api';
@@ -6,10 +7,11 @@ import api from '../services/api';
 const Feed = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [newPost, setNewPost] = useState('');
-  const [isPosting, setIsPosting] = useState(false);
+  const [commentInputs, setCommentInputs] = useState({});
+  const [isCommenting, setIsCommenting] = useState({});
 
   useEffect(() => {
     fetchPosts();
@@ -26,32 +28,17 @@ const Feed = () => {
     }
   };
 
-  const handleCreatePost = async (e) => {
-    e.preventDefault();
-    if (!newPost.trim()) return;
-
-    setIsPosting(true);
-    try {
-      const response = await api.post('/posts', {
-        content: newPost
-      });
-      
-      setPosts([response.data.post, ...posts]);
-      setNewPost('');
-    } catch (error) {
-      console.error('Failed to create post:', error);
-    } finally {
-      setIsPosting(false);
-    }
-  };
-
   const handleLike = async (postId) => {
     try {
       const response = await api.post(`/posts/${postId}/like`);
       
       setPosts(posts.map(post => 
         post.id === postId 
-          ? { ...post, is_liked: response.data.is_liked }
+          ? { 
+              ...post, 
+              is_liked: response.data.is_liked,
+              likes: response.data.likes_count
+            }
           : post
       ));
     } catch (error) {
@@ -59,12 +46,46 @@ const Feed = () => {
     }
   };
 
+  const handleAddComment = async (e, postId) => {
+    e.preventDefault();
+    const commentText = commentInputs[postId]?.trim();
+    if (!commentText) return;
+
+    setIsCommenting({ ...isCommenting, [postId]: true });
+    try {
+      const response = await api.post(`/posts/${postId}/comments`, {
+        content: commentText
+      });
+
+      // Update the post with the new comment
+      setPosts(posts.map(post => 
+        post.id === postId 
+          ? { 
+              ...post, 
+              comments_list: [...(post.comments_list || []), response.data.comment],
+              comments: (post.comments || 0) + 1
+            }
+          : post
+      ));
+
+      // Clear the input
+      setCommentInputs({ ...commentInputs, [postId]: '' });
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+    } finally {
+      setIsCommenting({ ...isCommenting, [postId]: false });
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffTime = Math.abs(now - date);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
+    // Calculate the difference in days
+    const diffTime = now - date;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
@@ -91,45 +112,6 @@ const Feed = () => {
     }}>
       <div className="container" style={{ maxWidth: '600px', margin: '0 auto' }}>
         
-        {/* Create Post */}
-        <div className="card mb-4">
-          <form onSubmit={handleCreatePost}>
-            <div style={{ marginBottom: '1rem' }}>
-              <textarea
-                value={newPost}
-                onChange={(e) => setNewPost(e.target.value)}
-                placeholder="What's on your mind?"
-                rows="3"
-                style={{
-                  width: '100%',
-                  padding: '1rem',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--border-radius)',
-                  backgroundColor: 'var(--bg-card)',
-                  color: 'var(--text-primary)',
-                  resize: 'vertical',
-                  fontSize: '1rem'
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                {newPost.length}/280 characters
-              </div>
-              <button
-                type="submit"
-                disabled={!newPost.trim() || isPosting || newPost.length > 280}
-                className="btn btn-primary"
-                style={{ 
-                  opacity: (!newPost.trim() || newPost.length > 280) ? 0.5 : 1 
-                }}
-              >
-                {isPosting ? 'Posting...' : 'Post'}
-              </button>
-            </div>
-          </form>
-        </div>
-
         {/* Posts Feed */}
         {posts.length === 0 ? (
           <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
@@ -145,11 +127,18 @@ const Feed = () => {
             {posts.map((post) => (
               <div key={post.id} className="card mb-4">
                 {/* Post Header */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginBottom: '1rem'
-                }}>
+                <div 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: '1rem',
+                    cursor: 'pointer',
+                    transition: 'opacity 0.2s'
+                  }}
+                  onClick={() => navigate(`/profile/${post.author?.username}`)}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                >
                   <div style={{
                     width: '40px',
                     height: '40px',
@@ -229,7 +218,7 @@ const Feed = () => {
                     <span style={{ fontSize: '1.25rem' }}>
                       {post.is_liked ? '❤️' : '🤍'}
                     </span>
-                    {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
+                    {post.likes} {post.likes === 1 ? 'like' : 'likes'}
                   </button>
                   
                   <div style={{
@@ -240,8 +229,118 @@ const Feed = () => {
                     fontSize: '0.875rem'
                   }}>
                     <span style={{ fontSize: '1.25rem' }}>💬</span>
-                    {post.comments_count} {post.comments_count === 1 ? 'comment' : 'comments'}
+                    {post.comments} {post.comments === 1 ? 'comment' : 'comments'}
                   </div>
+                </div>
+
+                {/* Comments Section */}
+                {post.comments_list && post.comments_list.length > 0 && (
+                  <div style={{
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                    borderTop: '1px solid var(--border-light)'
+                  }}>
+                    {post.comments_list.map((comment) => (
+                      <div key={comment.id} style={{
+                        marginBottom: '0.75rem',
+                        padding: '0.75rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        borderRadius: 'var(--border-radius)',
+                        border: '1px solid var(--border-light)'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          marginBottom: '0.5rem'
+                        }}>
+                          <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--primary-color)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '0.75rem',
+                            marginRight: '0.5rem',
+                            backgroundImage: comment.author?.profile_pic && comment.author.profile_pic !== 'default.jpg' 
+                              ? `url(${comment.author.profile_pic})` 
+                              : 'none',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                          }}>
+                            {(!comment.author?.profile_pic || comment.author.profile_pic === 'default.jpg') 
+                              && (comment.author?.username?.charAt(0).toUpperCase() || 'U')}
+                          </div>
+                          <span style={{
+                            fontWeight: '600',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.875rem'
+                          }}>
+                            {comment.author?.username || 'Unknown User'}
+                          </span>
+                          <span style={{
+                            marginLeft: '0.5rem',
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)'
+                          }}>
+                            {formatDate(comment.created_at)}
+                          </span>
+                        </div>
+                        <div style={{
+                          color: 'var(--text-primary)',
+                          lineHeight: '1.4'
+                        }}>
+                          {comment.content}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add Comment */}
+                <div style={{
+                  marginTop: '1rem',
+                  paddingTop: '1rem',
+                  borderTop: '1px solid var(--border-light)'
+                }}>
+                  <form onSubmit={(e) => handleAddComment(e, post.id)} style={{
+                    display: 'flex',
+                    gap: '0.5rem'
+                  }}>
+                    <input
+                      type="text"
+                      placeholder="Write a comment..."
+                      value={commentInputs[post.id] || ''}
+                      onChange={(e) => setCommentInputs({
+                        ...commentInputs,
+                        [post.id]: e.target.value
+                      })}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem 0.75rem',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--border-radius)',
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!commentInputs[post.id]?.trim() || isCommenting[post.id]}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.875rem',
+                        opacity: !commentInputs[post.id]?.trim() ? 0.5 : 1
+                      }}
+                    >
+                      {isCommenting[post.id] ? '...' : 'Comment'}
+                    </button>
+                  </form>
                 </div>
               </div>
             ))}

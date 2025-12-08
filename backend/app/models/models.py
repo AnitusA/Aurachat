@@ -2,6 +2,7 @@ from app import db
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import event
+import base64
 
 # Association table for followers
 followers = db.Table('followers',
@@ -25,6 +26,8 @@ class User(db.Model):
     posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     likes = db.relationship('Like', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='sender', lazy='dynamic', cascade='all, delete-orphan')
+    received_messages = db.relationship('Message', foreign_keys='Message.receiver_id', backref='receiver', lazy='dynamic', cascade='all, delete-orphan')
     
     # Self-referential many-to-many relationship for followers
     followed = db.relationship(
@@ -81,9 +84,8 @@ class User(db.Model):
             'email': self.email,
             'bio': self.bio or '',
             'profile_pic': self.profile_pic or 'default.jpg',
-            'is_private': self.is_private or False,
             'theme': self.theme or 'light',
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
             'followers': self.get_follower_count(),
             'following': self.get_following_count(),
             'posts': self.get_post_count()
@@ -96,7 +98,9 @@ class User(db.Model):
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
-    image_url = db.Column(db.String(200))
+    image_url = db.Column(db.String(500))  # For external URLs
+    image_data = db.Column(db.LargeBinary)  # For uploaded files
+    image_mimetype = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
@@ -114,11 +118,16 @@ class Post(db.Model):
         return self.likes.filter_by(user_id=user.id).first() is not None
     
     def to_dict(self, current_user=None):
+        image = self.image_url
+        if self.image_data and self.image_mimetype:
+            encoded_data = base64.b64encode(self.image_data).decode('utf-8')
+            image = f'data:{self.image_mimetype};base64,{encoded_data}'
         return {
             'id': self.id,
             'content': self.content,
-            'image': self.image_url,
-            'created_at': self.created_at.isoformat(),
+            'image': image,
+            'image_url': image,  # For backward compatibility
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
             'author': self.author.username,
             'author_username': self.author.username,
             'likes': self.get_like_count(),
@@ -138,9 +147,9 @@ class Comment(db.Model):
         return {
             'id': self.id,
             'content': self.content,
-            'created_at': self.created_at.isoformat(),
-            'author': self.author.username,
-            'author_username': self.author.username
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
+            'author': self.author.to_dict() if self.author else None,
+            'author_username': self.author.username if self.author else 'Unknown'
         }
 
 
@@ -171,8 +180,32 @@ class Follow(db.Model):
             'id': self.id,
             'follower_id': self.follower_id,
             'following_id': self.following_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
         }
     
     def __repr__(self):
         return f'<Follow {self.follower_id} -> {self.following_id}>'
+
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    is_read = db.Column(db.Boolean, default=False)
+    
+    # Foreign keys
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'content': self.content,
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
+            'is_read': self.is_read,
+            'sender': self.sender.to_dict() if self.sender else None,
+            'receiver': self.receiver.to_dict() if self.receiver else None
+        }
+    
+    def __repr__(self):
+        return f'<Message {self.sender.username} -> {self.receiver.username}: {self.content[:20]}...>'

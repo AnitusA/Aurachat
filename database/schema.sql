@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS user (
 CREATE TABLE IF NOT EXISTS post (
     id INT AUTO_INCREMENT PRIMARY KEY,
     content TEXT NOT NULL,
-    image_url VARCHAR(200),
+    image_url VARCHAR(500),
+    image_data LONGBLOB,
+    image_mimetype VARCHAR(100),
     user_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,

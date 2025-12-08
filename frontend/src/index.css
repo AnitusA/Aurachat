@@ -309,4 +309,35 @@ input:focus, textarea:focus, select:focus {
   .btn {
     padding: 10px 20px;
   }
+
+  /* Hide sidebar on mobile */
+  .navbar {
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+
+  .navbar.open {
+    transform: translateX(0);
+  }
+
+  /* Overlay for mobile sidebar */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none;
+  }
+
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  /* Adjust main content for mobile */
+  main {
+    margin-left: 0 !important;
+  }
 }

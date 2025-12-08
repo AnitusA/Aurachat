@@ -1,8 +1,12 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from functools import wraps
 from app import db
 from app.models import Post, User, Like, Comment
 from datetime import datetime
+import os
+import time
+import base64
+from werkzeug.utils import secure_filename
 
 posts_bp = Blueprint('posts', __name__)
 
@@ -30,17 +34,36 @@ def get_posts():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        # Get posts from users the current user follows, plus their own posts
-        followed_users = [u.id for u in user.followed.all()]
-        followed_users.append(user_id)
+        # Get all posts, but respect privacy settings
+        all_posts = Post.query.order_by(Post.created_at.desc()).all()
         
-        posts = Post.query.filter(Post.user_id.in_(followed_users)).order_by(Post.created_at.desc()).all()
+        # Filter posts based on privacy
+        posts = []
+        for post in all_posts:
+            post_author = post.author
+            # Show post if:
+            # 1. It's the user's own post, or
+            # 2. The author's profile is not private, or  
+            # 3. The current user follows the author
+            if (post.user_id == user_id or 
+                not post_author.is_private or 
+                user.is_following(post_author)):
+                posts.append(post)
         
         # Convert posts to dict and add like status for current user
         posts_data = []
         for post in posts:
             post_dict = post.to_dict()
             post_dict['is_liked'] = post.is_liked_by(user)
+            post_dict['author'] = post.author.to_dict()  # Include full author info
+            
+            # Include comments in feed
+            comments = Comment.query.filter_by(post_id=post.id)\
+                                   .order_by(Comment.created_at.asc())\
+                                   .options(db.joinedload(Comment.author))\
+                                   .all()
+            post_dict['comments_list'] = [comment.to_dict() for comment in comments]
+            
             posts_data.append(post_dict)
         
         return jsonify({'posts': posts_data}), 200
@@ -60,14 +83,46 @@ def create_post():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        data = request.get_json()
+        content = request.form.get('content') or (request.get_json().get('content') if request.is_json else None)
         
-        if not data.get('content'):
+        if not content:
             return jsonify({'error': 'Content is required'}), 400
         
+        image_url = None
+        image_data = None
+        image_mimetype = None
+        
+        # Check if image file is uploaded
+        if 'image' in request.files:
+            file = request.files['image']
+            if file.filename != '':
+                allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif']
+                if file.mimetype not in allowed:
+                    return jsonify({'error': 'Unsupported file type'}), 400
+                
+                data = file.read()
+                max_bytes = 5 * 1024 * 1024
+                if len(data) > max_bytes:
+                    return jsonify({'error': 'File too large (max 5MB)'}), 400
+                
+                image_data = data
+                image_mimetype = file.mimetype
+        
+        # Check for image_url if no file uploaded
+        if request.is_json:
+            data = request.get_json()
+            image_url = data.get('image_url') or data.get('image')
+        elif 'image_url' in request.form:
+            image_url = request.form.get('image_url')
+        
+        if image_url and image_data:
+            return jsonify({'error': 'Cannot provide both image file and image URL'}), 400
+        
         post = Post(
-            content=data['content'],
-            image_url=data.get('image_url', ''),
+            content=content,
+            image_url=image_url,
+            image_data=image_data,
+            image_mimetype=image_mimetype,
             user_id=user_id
         )
         
@@ -159,13 +214,21 @@ def like_post(post_id):
             # Unlike the post
             db.session.delete(existing_like)
             db.session.commit()
-            return jsonify({'message': 'Post unliked', 'is_liked': False}), 200
+            return jsonify({
+                'message': 'Post unliked', 
+                'is_liked': False,
+                'likes_count': post.get_like_count()
+            }), 200
         else:
             # Like the post
             like = Like(user_id=user_id, post_id=post_id)
             db.session.add(like)
             db.session.commit()
-            return jsonify({'message': 'Post liked', 'is_liked': True}), 200
+            return jsonify({
+                'message': 'Post liked', 
+                'is_liked': True,
+                'likes_count': post.get_like_count()
+            }), 200
         
     except Exception as e:
         db.session.rollback()
@@ -201,6 +264,11 @@ def add_comment(post_id):
         db.session.add(comment)
         db.session.commit()
         
+        # Refresh the comment to ensure relationships are loaded
+        db.session.refresh(comment)
+        # Explicitly load the author relationship
+        comment.author
+        
         return jsonify({
             'message': 'Comment added successfully',
             'comment': comment.to_dict()
@@ -235,7 +303,8 @@ def delete_comment(post_id, comment_id):
         return jsonify({'error': f'Failed to delete comment: {str(e)}'}), 500
 
 
-@posts_bp.route('/users/<int:user_id>/posts', methods=['GET'])
+
+@posts_bp.route('/posts/user/<int:user_id>', methods=['GET'])
 @login_required
 def get_user_posts(user_id):
     """Get posts from a specific user"""
@@ -246,12 +315,8 @@ def get_user_posts(user_id):
         if not target_user:
             return jsonify({'error': 'User not found'}), 404
         
-        # Check if profile is private and user is not following
+        # No privacy check - all profiles are public
         current_user = User.query.get(current_user_id)
-        if target_user.is_private and user_id != current_user_id:
-            if not current_user.is_following(target_user):
-                return jsonify({'error': 'This profile is private'}), 403
-        
         posts = Post.query.filter_by(user_id=user_id).order_by(Post.created_at.desc()).all()
         
         # Convert posts to dict and add like status for current user
@@ -259,6 +324,7 @@ def get_user_posts(user_id):
         for post in posts:
             post_dict = post.to_dict()
             post_dict['is_liked'] = post.is_liked_by(current_user)
+            post_dict['author'] = target_user.to_dict()  # Include full author info
             posts_data.append(post_dict)
         
         return jsonify({'posts': posts_data}), 200

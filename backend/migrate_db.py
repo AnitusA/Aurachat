@@ -59,6 +59,26 @@ def update_schema():
                 
             print("Database schema updated successfully!")
             
+            # Check post table
+            post_columns = [col['name'] for col in inspector.get_columns('post')]
+            
+            if 'image_url' not in post_columns:
+                print("Adding image_url column to post table...")
+                db.session.execute(text('ALTER TABLE post ADD COLUMN image_url VARCHAR(500)'))
+                db.session.commit()
+            
+            if 'image_data' not in post_columns:
+                print("Adding image_data column to post table...")
+                db.session.execute(text('ALTER TABLE post ADD COLUMN image_data LONGBLOB'))
+                db.session.commit()
+            
+            if 'image_mimetype' not in post_columns:
+                print("Adding image_mimetype column to post table...")
+                db.session.execute(text('ALTER TABLE post ADD COLUMN image_mimetype VARCHAR(100)'))
+                db.session.commit()
+            
+            print("Post table schema updated successfully!")
+            
         except Exception as e:
             print(f"Error updating schema: {e}")
             db.session.rollback()
@@ -85,21 +105,8 @@ if __name__ == '__main__':
     print("AuraChat Database Migration")
     print("=" * 40)
     
-    choice = input("Choose migration option:\n1. Update schema (add new columns)\n2. Recreate all tables\nEnter choice (1 or 2): ")
-    
-    if choice == '1':
-        if update_schema():
-            print("\n✅ Migration completed successfully!")
-        else:
-            print("\n❌ Migration failed!")
-    elif choice == '2':
-        confirm = input("⚠️  This will delete all existing data! Are you sure? (yes/no): ")
-        if confirm.lower() == 'yes':
-            if recreate_tables():
-                print("\n✅ Database recreated successfully!")
-            else:
-                print("\n❌ Database recreation failed!")
-        else:
-            print("Operation cancelled.")
+    # Automatically run update schema
+    if update_schema():
+        print("\n✅ Migration completed successfully!")
     else:
-        print("Invalid choice!")
+        print("\n❌ Migration failed!")

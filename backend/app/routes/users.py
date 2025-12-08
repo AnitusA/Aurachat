@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from functools import wraps
 from app import db
-from app.models import User, Post, Follow
+from app.models import User, Post, Follow, Comment
 from sqlalchemy import func
 
 users_bp = Blueprint('users', __name__)
@@ -154,7 +154,7 @@ def unfollow_user(user_id):
         return jsonify({'error': str(e)}), 500
 
 
-@users_bp.route('/search', methods=['GET'])
+@users_bp.route('/users/search', methods=['GET'])
 def search_users():
     try:
         query = request.args.get('q', '').strip()
@@ -166,8 +166,18 @@ def search_users():
             User.username.contains(query)
         ).limit(20).all()
         
+        # Return user data without follower counts to avoid authentication issues
+        user_data = []
+        for user in users:
+            user_data.append({
+                'id': user.id,
+                'username': user.username,
+                'profile_pic': user.profile_pic or 'default.jpg',
+                'bio': user.bio or ''
+            })
+        
         return jsonify({
-            'users': [user.to_dict() for user in users],
+            'users': user_data,
             'query': query
         }), 200
         
@@ -236,6 +246,15 @@ def get_user_posts_by_username(username):
         for post in posts:
             post_data = post.to_dict()
             post_data['author'] = user.to_dict()
+            # Add is_liked for current user
+            current_user = User.query.get(get_current_user_id())
+            post_data['is_liked'] = post.is_liked_by(current_user) if current_user else False
+            # Add comments for this post
+            comments = Comment.query.filter_by(post_id=post.id)\
+                                   .order_by(Comment.created_at.asc())\
+                                   .options(db.joinedload(Comment.author))\
+                                   .all()
+            post_data['comments_list'] = [comment.to_dict() for comment in comments]
             posts_data.append(post_data)
         
         return jsonify({'posts': posts_data}), 200
@@ -290,4 +309,58 @@ def toggle_follow_user(username):
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@users_bp.route('/followers', methods=['GET'])
+@login_required
+def get_followers():
+    try:
+        # Check if a specific user ID is requested
+        user_id_param = request.args.get('user_id')
+        if user_id_param:
+            try:
+                user_id = int(user_id_param)
+            except ValueError:
+                return jsonify({'error': 'Invalid user ID'}), 400
+        else:
+            user_id = get_current_user_id()
+        
+        # Get users who are following the specified user
+        followers = User.query.join(Follow, Follow.follower_id == User.id)\
+            .filter(Follow.following_id == user_id)\
+            .all()
+        
+        followers_data = [follower.to_dict() for follower in followers]
+        
+        return jsonify({'followers': followers_data}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@users_bp.route('/following', methods=['GET'])
+@login_required
+def get_following():
+    try:
+        # Check if a specific user ID is requested
+        user_id_param = request.args.get('user_id')
+        if user_id_param:
+            try:
+                user_id = int(user_id_param)
+            except ValueError:
+                return jsonify({'error': 'Invalid user ID'}), 400
+        else:
+            user_id = get_current_user_id()
+        
+        # Get users that the specified user is following
+        following = User.query.join(Follow, Follow.following_id == User.id)\
+            .filter(Follow.follower_id == user_id)\
+            .all()
+        
+        following_data = [user.to_dict() for user in following]
+        
+        return jsonify({'following': following_data}), 200
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500

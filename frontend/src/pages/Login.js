@@ -48,7 +48,7 @@ const Login = () => {
 
   return (
     <div className="login-page" style={{
-      minHeight: 'calc(100vh - var(--navbar-height))',
+      minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

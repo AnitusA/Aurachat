@@ -7,204 +7,256 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
-    setIsMenuOpen(false);
+    setIsMobileOpen(false);
   };
 
+  // Don't render navbar on login/register pages
+  if (!user) {
+    return null;
+  }
+
   return (
-    <nav className="navbar" style={{
-      height: 'var(--navbar-height)',
-      backgroundColor: 'var(--bg-card)',
-      borderBottom: '1px solid var(--border-color)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000,
-      transition: 'all var(--transition-normal)'
-    }}>
-      <div className="container">
-        <div className="flex items-center justify-between" style={{ height: 'var(--navbar-height)' }}>
-          {/* Logo */}
-          <Link to={user ? "/dashboard" : "/"} className="navbar-brand">
-            <div className="flex items-center gap-2">
-              <div style={{
-                width: '32px',
-                height: '32px',
-                background: 'var(--primary-gradient)',
-                borderRadius: '50%',
+    <>
+      {/* Mobile Menu Button - only show when user is logged in */}
+      {user && (
+        <button
+          onClick={() => setIsMobileOpen(!isMobileOpen)}
+          className="mobile-menu-btn btn btn-secondary"
+          style={{
+            position: 'fixed',
+            top: '1rem',
+            left: '1rem',
+            zIndex: 1001,
+            padding: '10px',
+            fontSize: '1.2rem',
+            display: 'none' // Hidden by default, shown on mobile via CSS
+          }}
+        >
+          ☰
+        </button>
+      )}
+
+      {/* Mobile Overlay - only show when user is logged in */}
+      {user && (
+        <div
+          className={`sidebar-overlay ${isMobileOpen ? 'open' : ''}`}
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - only show when user is logged in */}
+      {user && (
+        <nav className={`navbar ${isMobileOpen ? 'open' : ''}`} style={{
+          width: 'var(--sidebar-width)',
+          height: '100vh',
+          backgroundColor: 'var(--bg-card)',
+          borderRight: '1px solid var(--border-color)',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          zIndex: 1000,
+          transition: 'all var(--transition-normal)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+      <div style={{
+        padding: '1.5rem',
+        borderBottom: '1px solid var(--border-color)'
+      }}>
+        {/* Logo */}
+        <Link to={user ? "/dashboard" : "/"} className="navbar-brand">
+          <div className="flex items-center gap-2">
+            <div style={{
+              width: '40px',
+              height: '40px',
+              background: 'var(--primary-gradient)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: 'bold'
+            }}>
+              A
+            </div>
+            <span style={{
+              fontSize: '1.25rem',
+              fontWeight: '700',
+              background: 'var(--primary-gradient)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              AuraChat
+            </span>
+          </div>
+        </Link>
+      </div>
+
+      {/* Navigation Links */}
+      <div style={{
+        flex: 1,
+        padding: '1.5rem 0',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.5rem'
+      }}>
+        {user ? (
+          <>
+            <Link
+              to="/feed"
+              className="nav-link"
+              onClick={() => setIsMobileOpen(false)}
+              style={{
+                color: 'var(--text-primary)',
+                padding: '12px 24px',
+                margin: '0 8px',
+                borderRadius: 'var(--border-radius-sm)',
+                transition: 'all var(--transition-fast)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 'bold'
-              }}>
-                A
-              </div>
-              <span style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                background: 'var(--primary-gradient)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text'
-              }}>
-                AuraChat
-              </span>
-            </div>
-          </Link>
+                gap: '12px',
+                textDecoration: 'none'
+              }}
+            >
+              📱 Feed
+            </Link>
+            <Link
+              to="/create"
+              className="nav-link"
+              onClick={() => setIsMobileOpen(false)}
+              style={{
+                color: 'var(--text-primary)',
+                padding: '12px 24px',
+                margin: '0 8px',
+                borderRadius: 'var(--border-radius-sm)',
+                transition: 'all var(--transition-fast)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                textDecoration: 'none'
+              }}
+            >
+              ✏️ Create
+            </Link>
+            <Link
+              to="/search"
+              className="nav-link"
+              onClick={() => setIsMobileOpen(false)}
+              style={{
+                color: 'var(--text-primary)',
+                padding: '12px 24px',
+                margin: '0 8px',
+                borderRadius: 'var(--border-radius-sm)',
+                transition: 'all var(--transition-fast)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                textDecoration: 'none'
+              }}
+            >
+              🔍 Search
+            </Link>
+            <Link
+              to="/profile"
+              className="nav-link"
+              onClick={() => setIsMobileOpen(false)}
+              style={{
+                color: 'var(--text-primary)',
+                padding: '12px 24px',
+                margin: '0 8px',
+                borderRadius: 'var(--border-radius-sm)',
+                transition: 'all var(--transition-fast)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                textDecoration: 'none'
+              }}
+            >
+              👤 Profile
+            </Link>
+            <Link
+              to="/messages"
+              className="nav-link"
+              onClick={() => setIsMobileOpen(false)}
+              style={{
+                color: 'var(--text-primary)',
+                padding: '12px 24px',
+                margin: '0 8px',
+                borderRadius: 'var(--border-radius-sm)',
+                transition: 'all var(--transition-fast)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                textDecoration: 'none'
+              }}
+            >
+              💬 Messages
+            </Link>
+          </>
+        ) : null}
+      </div>
 
-          {/* Desktop Navigation */}
-          <div className="navbar-nav" style={{
+      {/* Bottom Section */}
+      <div style={{
+        padding: '1.5rem',
+        borderTop: '1px solid var(--border-color)'
+      }}>
+        {/* Theme Toggle */}
+        <button
+          onClick={() => {
+            toggleTheme();
+            setIsMobileOpen(false);
+          }}
+          className="btn btn-secondary"
+          style={{
+            width: '100%',
+            marginBottom: '1rem',
+            padding: '12px',
+            fontSize: '1.1rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '1rem'
-          }}>
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="btn btn-secondary"
-              style={{
-                padding: '8px 12px',
-                fontSize: '1.2rem',
-                minWidth: '44px'
-              }}
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-            >
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+        >
+          {theme === 'light' ? '🌙' : '☀️'} Theme
+        </button>
 
-            {user ? (
-              <>
-                {/* Desktop Menu */}
-                <div className="desktop-menu" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem'
-                }}>
-                  <Link 
-                    to="/feed" 
-                    className="nav-link"
-                    style={{
-                      color: 'var(--text-primary)',
-                      padding: '8px 16px',
-                      borderRadius: 'var(--border-radius-sm)',
-                      transition: 'all var(--transition-fast)'
-                    }}
-                  >
-                    📱 Feed
-                  </Link>
-                  <Link 
-                    to="/profile" 
-                    className="nav-link"
-                    style={{
-                      color: 'var(--text-primary)',
-                      padding: '8px 16px',
-                      borderRadius: 'var(--border-radius-sm)',
-                      transition: 'all var(--transition-fast)'
-                    }}
-                  >
-                    👤 Profile
-                  </Link>
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    Welcome, {user.username}
-                  </span>
-                  <button 
-                    onClick={handleLogout}
-                    className="btn btn-outline"
-                    style={{ padding: '8px 16px' }}
-                  >
-                    Logout
-                  </button>
-                </div>
-
-                {/* Mobile Menu Button */}
-                <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="mobile-menu-btn btn btn-secondary"
-                  style={{
-                    display: 'none',
-                    padding: '8px 12px',
-                    fontSize: '1.2rem'
-                  }}
-                >
-                  ☰
-                </button>
-              </>
-            ) : (
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <Link to="/login" className="btn btn-outline">
-                  Login
-                </Link>
-                <Link to="/register" className="btn btn-primary">
-                  Sign Up
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {user && (
-          <div 
-            className="mobile-menu"
-            style={{
-              display: isMenuOpen ? 'block' : 'none',
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              right: 0,
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderTop: 'none',
-              padding: '1rem',
-              boxShadow: 'var(--box-shadow)'
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <Link 
-                to="/feed" 
-                onClick={() => setIsMenuOpen(false)}
-                style={{
-                  color: 'var(--text-primary)',
-                  padding: '12px',
-                  borderRadius: 'var(--border-radius-sm)',
-                  textAlign: 'center'
-                }}
-              >
-                📱 Feed
-              </Link>
-              <Link 
-                to="/profile" 
-                onClick={() => setIsMenuOpen(false)}
-                style={{
-                  color: 'var(--text-primary)',
-                  padding: '12px',
-                  borderRadius: 'var(--border-radius-sm)',
-                  textAlign: 'center'
-                }}
-              >
-                👤 Profile
-              </Link>
-              <div style={{
-                padding: '12px',
-                textAlign: 'center',
-                color: 'var(--text-secondary)',
-                borderTop: '1px solid var(--border-color)',
-                marginTop: '0.5rem'
-              }}>
-                Welcome, {user.username}
-              </div>
-              <button 
-                onClick={handleLogout}
-                className="btn btn-danger"
-                style={{ width: '100%' }}
-              >
-                Logout
-              </button>
+        {user ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{
+              padding: '12px',
+              textAlign: 'center',
+              color: 'var(--text-secondary)',
+              fontSize: '0.9rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: 'var(--border-radius-sm)'
+            }}>
+              Welcome, {user.username}
             </div>
+            <button
+              onClick={handleLogout}
+              className="btn btn-danger"
+              style={{ width: '100%' }}
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <Link to="/login" className="btn btn-outline" style={{ width: '100%' }} onClick={() => setIsMobileOpen(false)}>
+              Login
+            </Link>
+            <Link to="/register" className="btn btn-primary" style={{ width: '100%' }} onClick={() => setIsMobileOpen(false)}>
+              Sign Up
+            </Link>
           </div>
         )}
       </div>
@@ -215,16 +267,14 @@ const Navbar = () => {
         }
 
         @media (max-width: 768px) {
-          .desktop-menu {
-            display: none !important;
-          }
-          
           .mobile-menu-btn {
             display: block !important;
           }
         }
       `}</style>
     </nav>
+      )}
+    </>
   );
 };
 

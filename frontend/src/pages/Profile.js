@@ -79,6 +79,7 @@ const Profile = () => {
     
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
   };
 
   if (isLoading) {
@@ -343,10 +344,10 @@ const Profile = () => {
                     color: 'var(--text-secondary)'
                   }}>
                     <span>
-                      {post.likes_count} {post.likes_count === 1 ? 'like' : 'likes'}
+                      {post.likes} {post.likes === 1 ? 'like' : 'likes'}
                     </span>
                     <span>
-                      {post.comments_count} {post.comments_count === 1 ? 'comment' : 'comments'}
+                      {post.comments} {post.comments === 1 ? 'comment' : 'comments'}
                     </span>
                   </div>
                 </div>
