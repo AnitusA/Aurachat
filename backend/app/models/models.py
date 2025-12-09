@@ -99,6 +99,7 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(500))  # For external URLs
+    video_url = db.Column(db.String(500))  # For YouTube/video URLs
     image_data = db.Column(db.LargeBinary)  # For uploaded files
     image_mimetype = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
@@ -127,6 +128,7 @@ class Post(db.Model):
             'content': self.content,
             'image': image,
             'image_url': image,  # For backward compatibility
+            'video_url': self.video_url,  # YouTube/video URL
             'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
             'author': self.author.username,
             'author_username': self.author.username,

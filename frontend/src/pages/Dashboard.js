@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import Notes from '../components/Notes';
 import api from '../services/api';
 
 const Dashboard = () => {
@@ -69,6 +70,9 @@ const Dashboard = () => {
         rgba(102, 126, 234, 0.05) 0%, 
         rgba(118, 75, 162, 0.05) 100%)`
     }}>
+      {/* Notes Section */}
+      <Notes />
+      
       <div className="container">
         {/* Header */}
         <div className="dashboard-header mb-4">

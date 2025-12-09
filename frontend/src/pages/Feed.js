@@ -9,12 +9,14 @@ const Feed = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
+  const [shorts, setShorts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [commentInputs, setCommentInputs] = useState({});
   const [isCommenting, setIsCommenting] = useState({});
 
   useEffect(() => {
     fetchPosts();
+    fetchShorts();
   }, []);
 
   const fetchPosts = async () => {
@@ -25,6 +27,35 @@ const Feed = () => {
       console.error('Failed to fetch posts:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchShorts = async () => {
+    try {
+      const response = await api.get('/youtube/shorts?max_results=20');
+      if (response.data.shorts) {
+        // Convert shorts to post-like format - only showing shorts
+        const shortsAsPosts = response.data.shorts.map(short => ({
+          id: `short_${short.id}`,
+          type: 'short',
+          content: short.title,
+          video_url: short.embed_url,
+          video_id: short.id,
+          thumbnail: short.thumbnail,
+          author: {
+            username: short.channel,
+            profile_pic: short.thumbnail
+          },
+          created_at: short.published_at,
+          likes: 0,
+          comments: 0,
+          is_liked: false,
+          comments_list: []
+        }));
+        setShorts(shortsAsPosts);
+      }
+    } catch (error) {
+      console.error('Failed to fetch shorts:', error);
     }
   };
 
@@ -108,23 +139,25 @@ const Feed = () => {
     <div className="feed-page" style={{
       minHeight: 'calc(100vh - var(--navbar-height))',
       padding: '2rem 0',
-      backgroundColor: 'var(--bg-primary)'
+      backgroundColor: 'var(--bg-primary)',
+      overflowX: 'hidden'
     }}>
       <div className="container" style={{ maxWidth: '600px', margin: '0 auto' }}>
         
-        {/* Posts Feed */}
-        {posts.length === 0 ? (
+        {/* Only Show YouTube Shorts */}
+        {shorts.length === 0 ? (
           <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
             <h3 style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-              No posts yet
+              Loading YouTube Shorts...
             </h3>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Follow some users to see their posts in your feed, or create your first post!
+              Please wait while we fetch the latest shorts for you!
             </p>
           </div>
         ) : (
-          <div className="posts-list">
-            {posts.map((post) => (
+          <div className="posts-list" style={{ overflowY: 'hidden' }}>
+            {/* Only show shorts */}
+            {shorts.map((post, index) => (
               <div key={post.id} className="card mb-4">
                 {/* Post Header */}
                 <div 
@@ -132,12 +165,12 @@ const Feed = () => {
                     display: 'flex',
                     alignItems: 'center',
                     marginBottom: '1rem',
-                    cursor: 'pointer',
+                    cursor: post.type === 'short' ? 'default' : 'pointer',
                     transition: 'opacity 0.2s'
                   }}
-                  onClick={() => navigate(`/profile/${post.author?.username}`)}
-                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
-                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                  onClick={() => post.type !== 'short' && navigate(`/profile/${post.author?.username}`)}
+                  onMouseEnter={(e) => post.type !== 'short' && (e.currentTarget.style.opacity = '0.8')}
+                  onMouseLeave={(e) => post.type !== 'short' && (e.currentTarget.style.opacity = '1')}
                 >
                   <div style={{
                     width: '40px',
@@ -159,9 +192,22 @@ const Feed = () => {
                     {(!post.author?.profile_pic || post.author.profile_pic === 'default.jpg') 
                       && (post.author?.username?.charAt(0).toUpperCase() || 'U')}
                   </div>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
                       {post.author?.username || 'Unknown User'}
+                      {post.type === 'short' && (
+                        <span style={{
+                          marginLeft: '0.5rem',
+                          fontSize: '0.75rem',
+                          backgroundColor: '#FF0000',
+                          color: 'white',
+                          padding: '0.125rem 0.5rem',
+                          borderRadius: '12px',
+                          fontWeight: '600'
+                        }}>
+                          YouTube Short
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                       {formatDate(post.created_at)}
@@ -178,8 +224,29 @@ const Feed = () => {
                   {post.content}
                 </div>
 
+                {/* YouTube Short Video */}
+                {post.type === 'short' && post.video_url && (
+                  <div style={{ marginBottom: '1rem', position: 'relative', paddingBottom: '177.78%', height: 0 }}>
+                    <iframe
+                      src={post.video_url}
+                      title={post.content}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: 'var(--border-radius)'
+                      }}
+                    />
+                  </div>
+                )}
+
                 {/* Post Image */}
-                {post.image_url && (
+                {!post.type && post.image_url && (
                   <div style={{ marginBottom: '1rem' }}>
                     <img
                       src={post.image_url}
@@ -194,154 +261,13 @@ const Feed = () => {
                   </div>
                 )}
 
-                {/* Post Actions */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1.5rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--border-color)'
-                }}>
-                  <button
-                    onClick={() => handleLike(post.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      cursor: 'pointer',
-                      color: post.is_liked ? 'var(--primary-color)' : 'var(--text-secondary)',
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    <span style={{ fontSize: '1.25rem' }}>
-                      {post.is_liked ? '❤️' : '🤍'}
-                    </span>
-                    {post.likes} {post.likes === 1 ? 'like' : 'likes'}
-                  </button>
-                  
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.875rem'
-                  }}>
-                    <span style={{ fontSize: '1.25rem' }}>💬</span>
-                    {post.comments} {post.comments === 1 ? 'comment' : 'comments'}
-                  </div>
-                </div>
+
 
                 {/* Comments Section */}
-                {post.comments_list && post.comments_list.length > 0 && (
-                  <div style={{
-                    marginTop: '1rem',
-                    paddingTop: '1rem',
-                    borderTop: '1px solid var(--border-light)'
-                  }}>
-                    {post.comments_list.map((comment) => (
-                      <div key={comment.id} style={{
-                        marginBottom: '0.75rem',
-                        padding: '0.75rem',
-                        backgroundColor: 'var(--bg-secondary)',
-                        borderRadius: 'var(--border-radius)',
-                        border: '1px solid var(--border-light)'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          marginBottom: '0.5rem'
-                        }}>
-                          <div style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            backgroundColor: 'var(--primary-color)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '0.75rem',
-                            marginRight: '0.5rem',
-                            backgroundImage: comment.author?.profile_pic && comment.author.profile_pic !== 'default.jpg' 
-                              ? `url(${comment.author.profile_pic})` 
-                              : 'none',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center'
-                          }}>
-                            {(!comment.author?.profile_pic || comment.author.profile_pic === 'default.jpg') 
-                              && (comment.author?.username?.charAt(0).toUpperCase() || 'U')}
-                          </div>
-                          <span style={{
-                            fontWeight: '600',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.875rem'
-                          }}>
-                            {comment.author?.username || 'Unknown User'}
-                          </span>
-                          <span style={{
-                            marginLeft: '0.5rem',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)'
-                          }}>
-                            {formatDate(comment.created_at)}
-                          </span>
-                        </div>
-                        <div style={{
-                          color: 'var(--text-primary)',
-                          lineHeight: '1.4'
-                        }}>
-                          {comment.content}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Removed for shorts-only view */}
 
                 {/* Add Comment */}
-                <div style={{
-                  marginTop: '1rem',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--border-light)'
-                }}>
-                  <form onSubmit={(e) => handleAddComment(e, post.id)} style={{
-                    display: 'flex',
-                    gap: '0.5rem'
-                  }}>
-                    <input
-                      type="text"
-                      placeholder="Write a comment..."
-                      value={commentInputs[post.id] || ''}
-                      onChange={(e) => setCommentInputs({
-                        ...commentInputs,
-                        [post.id]: e.target.value
-                      })}
-                      style={{
-                        flex: 1,
-                        padding: '0.5rem 0.75rem',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 'var(--border-radius)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.875rem'
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!commentInputs[post.id]?.trim() || isCommenting[post.id]}
-                      className="btn btn-secondary"
-                      style={{
-                        padding: '0.5rem 1rem',
-                        fontSize: '0.875rem',
-                        opacity: !commentInputs[post.id]?.trim() ? 0.5 : 1
-                      }}
-                    >
-                      {isCommenting[post.id] ? '...' : 'Comment'}
-                    </button>
-                  </form>
-                </div>
+                {/* Removed for shorts-only view */}
               </div>
             ))}
           </div>
