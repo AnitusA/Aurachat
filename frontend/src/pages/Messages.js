@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSocket } from '../contexts/SocketContext';
 import api from '../services/api';
+import VideoCall from '../components/VideoCall';
 
 const Messages = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { socket } = useSocket();
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -14,6 +17,12 @@ const Messages = () => {
   const [isSending, setIsSending] = useState(false);
   const [followers, setFollowers] = useState([]);
   const [isLoadingFollowers, setIsLoadingFollowers] = useState(false);
+  const [isInCall, setIsInCall] = useState(false);
+  const [callType, setCallType] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callerInfo, setCallerInfo] = useState(null);
+  const [remoteUserId, setRemoteUserId] = useState(null);
+  const [isCallInitiator, setIsCallInitiator] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -29,6 +38,36 @@ const Messages = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Socket listeners for incoming calls
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('incoming_call', ({ caller, callType: type }) => {
+      setIncomingCall(true);
+      setCallerInfo(caller);
+      setCallType(type);
+      setRemoteUserId(caller.id);
+    });
+
+    socket.on('call_declined', () => {
+      alert('Call was declined');
+      setIncomingCall(false);
+      setCallerInfo(null);
+    });
+
+    socket.on('call_ended', () => {
+      setIsInCall(false);
+      setIncomingCall(false);
+      setCallerInfo(null);
+    });
+
+    return () => {
+      socket?.off('incoming_call');
+      socket?.off('call_declined');
+      socket?.off('call_ended');
+    };
+  }, [socket]);
 
   const fetchConversations = async () => {
     try {
@@ -116,6 +155,54 @@ const Messages = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const initiateCall = (type) => {
+    if (!selectedConversation || !socket) return;
+    
+    setCallType(type);
+    setRemoteUserId(selectedConversation.user.id);
+    setIsCallInitiator(true);
+    setIsInCall(true);
+    
+    socket.emit('call_user', {
+      targetUserId: selectedConversation.user.id,
+      callType: type,
+      caller: {
+        id: user.id,
+        username: user.username
+      }
+    });
+  };
+
+  const acceptCall = () => {
+    setIsInCall(true);
+    setIncomingCall(false);
+    setIsCallInitiator(false);
+    
+    if (socket) {
+      socket.emit('call_accepted', {
+        targetUserId: remoteUserId
+      });
+    }
+  };
+
+  const declineCall = () => {
+    setIncomingCall(false);
+    setCallerInfo(null);
+    
+    if (socket) {
+      socket.emit('call_declined', {
+        targetUserId: remoteUserId
+      });
+    }
+  };
+
+  const endCall = () => {
+    setIsInCall(false);
+    setCallType(null);
+    setRemoteUserId(null);
+    setIsCallInitiator(false);
   };
 
   const formatMessageTime = (dateString) => {
@@ -390,13 +477,59 @@ const Messages = () => {
                 {(!selectedConversation.user.profile_pic || selectedConversation.user.profile_pic === 'default.jpg')
                   && selectedConversation.user.username?.charAt(0).toUpperCase()}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{
                   fontWeight: '600',
                   color: 'var(--text-primary)'
                 }}>
                   {selectedConversation.user.username}
                 </div>
+              </div>
+              
+              {/* Call Buttons */}
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => initiateCall('audio')}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    transition: 'transform 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                >
+                  🎤 Audio Call
+                </button>
+                <button
+                  onClick={() => initiateCall('video')}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '500',
+                    transition: 'transform 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                >
+                  📹 Video Call
+                </button>
               </div>
             </div>
 
@@ -499,6 +632,83 @@ const Messages = () => {
           </div>
         )}
       </div>
+
+      {/* Incoming Call Notification */}
+      {incomingCall && callerInfo && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '2rem',
+          borderRadius: '20px',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+          zIndex: 10000,
+          minWidth: '350px',
+          textAlign: 'center',
+          color: 'white'
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+            {callType === 'video' ? '📹' : '🎤'}
+          </div>
+          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>
+            Incoming {callType === 'video' ? 'Video' : 'Audio'} Call
+          </h3>
+          <p style={{ margin: '0 0 1.5rem 0', fontSize: '1.125rem' }}>
+            {callerInfo.username}
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+            <button
+              onClick={acceptCall}
+              style={{
+                padding: '0.75rem 2rem',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '600',
+                transition: 'transform 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            >
+              ✓ Accept
+            </button>
+            <button
+              onClick={declineCall}
+              style={{
+                padding: '0.75rem 2rem',
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: '600',
+                transition: 'transform 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            >
+              ✕ Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Video Call Component */}
+      {isInCall && (
+        <VideoCall
+          isOpen={isInCall}
+          onClose={endCall}
+          callType={callType}
+          remoteUserId={remoteUserId}
+          isInitiator={isCallInitiator}
+        />
+      )}
     </div>
   );
 };

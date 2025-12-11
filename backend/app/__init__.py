@@ -2,12 +2,14 @@ from flask import Flask, jsonify, request, session
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_socketio import SocketIO
 from config import Config
 import os
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
+socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -76,5 +78,11 @@ def create_app(config_class=Config):
     # Create tables
     with app.app_context():
         db.create_all()
+    
+    # Initialize Socket.IO with the app
+    socketio.init_app(app, cors_allowed_origins="*")
+    
+    # Import socket events (must be after socketio init)
+    from app import socket_events
     
     return app
