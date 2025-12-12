@@ -30,7 +30,7 @@ const Layout = ({ children }) => {
         minHeight: '100vh',
         backgroundColor: 'var(--bg-primary)',
         transition: 'margin-left var(--transition-normal)'
-      }}>
+      }} className="main-content">
         {children}
       </main>
     </div>

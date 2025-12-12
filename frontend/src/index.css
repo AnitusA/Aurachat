@@ -44,6 +44,142 @@
   --transition-slow: 0.5s ease;
 }
 
+/* Mobile Layout Optimization */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
+    padding-top: 60px; /* Account for top nav */
+    padding-bottom: 65px; /* Account for bottom nav */
+  }
+
+  .container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    max-width: 100% !important;
+  }
+
+  .card {
+    border-radius: var(--border-radius) !important;
+    margin-bottom: 1rem !important;
+    padding: 1rem !important;
+  }
+
+  /* Optimize text for mobile */
+  h1 { font-size: 1.75rem !important; }
+  h2 { font-size: 1.5rem !important; }
+  h3 { font-size: 1.25rem !important; }
+
+  /* Make buttons easier to tap */
+  button, .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem !important;
+    font-size: 1rem;
+  }
+
+  /* Improve input fields on mobile */
+  input, textarea, select {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    min-height: 44px;
+    padding: 0.75rem !important;
+  }
+
+  /* Better spacing for mobile */
+  .mb-4 { margin-bottom: 1rem !important; }
+  .mt-4 { margin-top: 1rem !important; }
+  .p-4 { padding: 1rem !important; }
+
+  /* Page specific overrides */
+  [style*="maxWidth"] {
+    max-width: 100% !important;
+  }
+
+  /* Feed page optimization */
+  .feed-page {
+    padding: 1rem 0 !important;
+  }
+
+  /* Messages page optimization */
+  .messages-container {
+    max-width: 100% !important;
+    height: calc(100vh - 125px) !important;
+  }
+
+  /* Profile page optimization */
+  .profile-container {
+    max-width: 100% !important;
+  }
+
+  /* Party page optimization */
+  .party-container {
+    max-width: 100% !important;
+  }
+
+  /* Settings page optimization */
+  .settings-container {
+    max-width: 100% !important;
+  }
+
+  /* Create page optimization */
+  .create-container {
+    max-width: 100% !important;
+  }
+
+  /* Dashboard cards grid - stack on mobile */
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Modal optimization for mobile */
+  .modal {
+    padding: 1rem !important;
+  }
+
+  .modal-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 1rem auto !important;
+  }
+
+  /* Image optimization */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Video player optimization */
+  video, iframe {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Form optimization */
+  form {
+    padding: 1rem !important;
+  }
+
+  .form-group {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Table optimization - make scrollable */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Hide desktop-only elements */
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* Show mobile-only elements */
+  .mobile-only {
+    display: block !important;
+  }
+}
+
 /* Dark theme colors */
 [data-theme="dark"],
 .dark-theme {
@@ -355,5 +491,81 @@ input:focus, textarea:focus, select:focus {
   /* Adjust main content for mobile */
   main {
     margin-left: 0 !important;
+  }
+
+  /* Dashboard Page Mobile Optimizations */
+  .dashboard-page > div:first-child {
+    max-width: 100% !important;
+    padding: 1rem !important;
+  }
+
+  .dashboard-page .container {
+    max-width: 100% !important;
+    padding: 0 0.75rem !important;
+    margin: 1rem auto !important;
+  }
+
+  /* Profile Page Mobile Optimizations */
+  .profile-page {
+    padding: 1rem !important;
+  }
+
+  .profile-page .container {
+    max-width: 100% !important;
+    padding: 1.5rem !important;
+  }
+
+  /* Profile header - stack vertically */
+  .profile-page .container > div:first-child > div:first-child {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1rem !important;
+  }
+
+  /* Profile picture - reduce size */
+  .profile-page .container > div:first-child > div:first-child > div:first-child {
+    width: 80px !important;
+    height: 80px !important;
+    font-size: 2rem !important;
+  }
+
+  /* Info container - center align */
+  .profile-page .container > div:first-child > div:first-child > div:nth-child(2) {
+    width: 100% !important;
+  }
+
+  /* Username and stats row - stack on mobile */
+  .profile-page .container > div:first-child > div:first-child > div:nth-child(2) > div:first-child {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1rem !important;
+    text-align: center !important;
+  }
+
+  /* Stats - wrap better */
+  .profile-page .container > div:first-child > div:first-child > div:nth-child(2) > div:first-child > div:last-child {
+    gap: 1.5rem !important;
+    justify-content: center !important;
+  }
+
+  /* Bio section - center text */
+  .profile-page .container > div:first-child > div:nth-child(2) {
+    text-align: center !important;
+  }
+
+  /* Posts grid - 2 columns on mobile, 1 on very small screens */
+  .profile-page .container > div:last-child > div:last-child {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  @media (max-width: 480px) {
+    .profile-page .container > div:last-child > div:last-child {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .profile-page .container {
+      padding: 1rem !important;
+    }
   }
 }

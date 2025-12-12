@@ -80,7 +80,7 @@ const Navbar = () => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>
-              AuraChat
+                 AuraChat
             </span>
           </Link>
 
@@ -559,25 +559,19 @@ const Navbar = () => {
             bottom: 0;
           }
 
-          /* Show the mobile menu button */
-          .mobile-menu-btn {
-            display: flex !important;
-            z-index: 1002;
-            top: 10px !important;
-            left: 10px !important;
-          }
-          
-          /* Sidebar Styling for Mobile (Hidden by default) */
+          /* Completely hide the left sidebar on mobile */
           .navbar {
-            transform: translateX(calc(-1 * ${SIDEBAR_WIDTH})); 
-            box-shadow: none;
-            z-index: 1001;
+            display: none !important;
           }
 
-          /* Sidebar Open State (Slide-in) */
-          .navbar.open {
-            transform: translateX(0);
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+          /* Hide the mobile menu button since sidebar is hidden */
+          .mobile-menu-btn {
+            display: none !important;
+          }
+          
+          /* Hide sidebar overlay on mobile */
+          .sidebar-overlay {
+            display: none !important;
           }
 
           /* Mobile Nav Link Hover/Active */

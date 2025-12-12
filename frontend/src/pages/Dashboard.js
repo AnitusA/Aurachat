@@ -97,7 +97,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div style={{ 
+    <div className="dashboard-page" style={{ 
       minHeight: '100vh', 
       backgroundColor: 'var(--bg-secondary)',
       padding: '1rem 0 2rem 0'
