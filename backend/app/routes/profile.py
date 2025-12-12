@@ -52,7 +52,46 @@ def update_profile():
         
         data = request.get_json()
         
-        # Update allowed fields in user table
+        # Update username if provided and different
+        if 'username' in data and data['username'] != user.username:
+            new_username = data['username'].strip()
+            if not new_username:
+                return jsonify({'error': 'Username cannot be empty'}), 400
+            
+            # Check if username is already taken
+            existing_user = User.query.filter_by(username=new_username).first()
+            if existing_user and existing_user.id != user_id:
+                return jsonify({'error': 'Username already taken'}), 400
+            
+            # Validate username format
+            import re
+            if not re.match(r'^[a-zA-Z0-9_]+$', new_username):
+                return jsonify({'error': 'Username can only contain letters, numbers, and underscores'}), 400
+            if len(new_username) < 3 or len(new_username) > 20:
+                return jsonify({'error': 'Username must be between 3 and 20 characters'}), 400
+            
+            user.username = new_username
+        
+        # Update email if provided and different
+        if 'email' in data and data['email'] != user.email:
+            new_email = data['email'].strip().lower()
+            if not new_email:
+                return jsonify({'error': 'Email cannot be empty'}), 400
+            
+            # Check if email is already taken
+            existing_user = User.query.filter_by(email=new_email).first()
+            if existing_user and existing_user.id != user_id:
+                return jsonify({'error': 'Email already taken'}), 400
+            
+            # Basic email validation
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, new_email):
+                return jsonify({'error': 'Invalid email format'}), 400
+            
+            user.email = new_email
+        
+        # Update other allowed fields in user table
         if 'bio' in data:
             user.bio = data['bio']
         if 'profile_pic' in data:

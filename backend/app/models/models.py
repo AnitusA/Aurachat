@@ -27,7 +27,7 @@ class User(db.Model):
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     likes = db.relationship('Like', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     sent_messages = db.relationship('Message', foreign_keys='Message.sender_id', backref='sender', lazy='dynamic', cascade='all, delete-orphan')
-    received_messages = db.relationship('Message', foreign_keys='Message.receiver_id', backref='receiver', lazy='dynamic', cascade='all, delete-orphan')
+    received_messages = db.relationship('Message', foreign_keys='Message.recipient_id', backref='receiver', lazy='dynamic', cascade='all, delete-orphan')
     
     # Self-referential many-to-many relationship for followers
     followed = db.relationship(
@@ -99,7 +99,6 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(500))  # For external URLs
-    video_url = db.Column(db.String(500))  # For YouTube/video URLs
     image_data = db.Column(db.LargeBinary)  # For uploaded files
     image_mimetype = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
@@ -128,7 +127,6 @@ class Post(db.Model):
             'content': self.content,
             'image': image,
             'image_url': image,  # For backward compatibility
-            'video_url': self.video_url,  # YouTube/video URL
             'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
             'author': self.author.username,
             'author_username': self.author.username,
@@ -191,23 +189,130 @@ class Follow(db.Model):
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.Text, nullable=False)
+    content = db.Column(db.Text, nullable=True)  # Nullable for media-only messages
+    message_type = db.Column(db.String(20), default='text')  # text, image, audio
+    media_url = db.Column(db.String(500))  # Supabase URL
+    media_path = db.Column(db.String(500))  # Supabase path for deletion
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     is_read = db.Column(db.Boolean, default=False)
+    delete_after_24h = db.Column(db.Boolean, default=False)
+    delete_after_viewing = db.Column(db.Boolean, default=False)
+    expires_at = db.Column(db.DateTime)  # Auto-set if delete_after_24h is True
     
     # Foreign keys
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    receiver_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     def to_dict(self):
         return {
             'id': self.id,
             'content': self.content,
+            'message_type': self.message_type,
+            'media_url': self.media_url,
             'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
             'is_read': self.is_read,
+            'delete_after_24h': self.delete_after_24h,
+            'delete_after_viewing': self.delete_after_viewing,
+            'expires_at': self.expires_at.isoformat() + 'Z' if self.expires_at else None,
             'sender': self.sender.to_dict() if self.sender else None,
             'receiver': self.receiver.to_dict() if self.receiver else None
         }
     
     def __repr__(self):
-        return f'<Message {self.sender.username} -> {self.receiver.username}: {self.content[:20]}...>'
+        return f'<Message {self.sender.username} -> {self.receiver.username}: {self.content[:20] if self.content else self.message_type}...>'
+
+# Association table for party members
+party_members = db.Table('party_members',
+    db.Column('party_id', db.Integer, db.ForeignKey('party.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('joined_at', db.DateTime, default=datetime.utcnow)
+)
+
+class Party(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # 'private' or 'public'
+    youtube_url = db.Column(db.String(500), nullable=False)
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+
+    # Relationships
+    admin = db.relationship('User', backref='admin_parties')
+    members = db.relationship('User', secondary=party_members, backref='joined_parties')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'youtube_url': self.youtube_url,
+            'admin_id': self.admin_id,
+            'admin_username': self.admin.username if self.admin else None,
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
+            'is_active': self.is_active,
+            'members_count': len(self.members),
+            'members': [{
+                'id': member.id,
+                'username': member.username,
+                'profile_pic': member.profile_pic or 'default.jpg'
+            } for member in self.members]
+        }
+
+    def __repr__(self):
+        return f'<Party {self.name} ({self.type}) by {self.admin.username}>'
+
+
+class PartyMessage(db.Model):
+    """Model for storing party chat messages"""
+    id = db.Column(db.Integer, primary_key=True)
+    party_id = db.Column(db.Integer, db.ForeignKey('party.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    party = db.relationship('Party', backref=db.backref('messages', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref='party_messages')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'party_id': self.party_id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else 'Unknown',
+            'profile_pic': self.user.profile_pic if self.user else 'default.jpg',
+            'message': self.content,  # Changed from 'content' to 'message' for consistency
+            'timestamp': self.created_at.isoformat() + 'Z' if self.created_at else None  # Changed from 'created_at' to 'timestamp'
+        }
+
+    def __repr__(self):
+        return f'<PartyMessage {self.user.username} in Party {self.party_id}: {self.content[:20]}...>'
+
+class PartyJoinRequest(db.Model):
+    """Model for storing party join requests for private parties"""
+    id = db.Column(db.Integer, primary_key=True)
+    party_id = db.Column(db.Integer, db.ForeignKey('party.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    party = db.relationship('Party', backref=db.backref('join_requests', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref='party_join_requests')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'party_id': self.party_id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else 'Unknown',
+            'profile_pic': self.user.profile_pic if self.user else 'default.jpg',
+            'status': self.status,
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() + 'Z' if self.updated_at else None
+        }
+
+    def __repr__(self):
+        return f'<PartyJoinRequest {self.user.username} to Party {self.party_id}: {self.status}>'

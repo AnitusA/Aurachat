@@ -10,10 +10,12 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/ProfileNew';
 import ProfileEdit from './pages/ProfileEdit';
+import Settings from './pages/Settings';
 import Feed from './pages/Feed';
 import Create from './pages/Create';
 import Messages from './pages/Messages';
 import Search from './pages/Search';
+import Parties from './pages/Parties';
 import './index.css';
 
 // Layout component that conditionally shows navbar and adjusts content
@@ -78,6 +80,11 @@ function App() {
                     <ProfileEdit />
                   </ProtectedRoute>
                 } />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } />
                 <Route path="/dashboard" element={
                   <ProtectedRoute>
                     <Dashboard />
@@ -86,6 +93,11 @@ function App() {
                 <Route path="/messages" element={
                   <ProtectedRoute>
                     <Messages />
+                  </ProtectedRoute>
+                } />
+                <Route path="/parties" element={
+                  <ProtectedRoute>
+                    <Parties />
                   </ProtectedRoute>
                 } />
                 

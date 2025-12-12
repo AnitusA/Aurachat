@@ -114,177 +114,221 @@ const Profile = () => {
   return (
     <div className="profile-page" style={{
       minHeight: 'calc(100vh - var(--navbar-height))',
-      padding: '2rem 0',
+      padding: '2rem 1rem',
       backgroundColor: 'var(--bg-primary)'
     }}>
-      <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <div className="container" style={{ 
+        maxWidth: '900px', 
+        margin: '0 auto',
+        backgroundColor: 'var(--bg-card)',
+        borderRadius: '16px',
+        padding: '2.5rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+      }}>
         
         {/* Profile Header */}
-        <div className="card mb-4">
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          marginBottom: '2rem'
+        }}>
+          {/* Profile Picture */}
+          <div style={{
+            width: '100px',
+            height: '100px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--primary-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '2.5rem',
+            fontWeight: 'bold',
+            marginBottom: '1rem',
+            backgroundImage: user.profile_pic && user.profile_pic !== 'default.jpg' 
+              ? `url(${user.profile_pic})` 
+              : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            border: '4px solid var(--bg-card)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+          }}>
+            {(!user.profile_pic || user.profile_pic === 'default.jpg') 
+              && user.username.charAt(0).toUpperCase()}
+          </div>
+
+          {/* Username */}
+          <h1 style={{ 
+            margin: '0 0 0.25rem 0', 
+            color: 'var(--text-primary)',
+            fontSize: '1.5rem',
+            fontWeight: '600'
+          }}>
+            {user.username}
+          </h1>
+          
+          {/* Email */}
+          {user.email && (
+            <p style={{ 
+              margin: '0 0 1rem 0', 
+              color: 'var(--text-secondary)',
+              fontSize: '0.875rem'
+            }}>
+              {user.email}
+            </p>
+          )}
+
+          {/* Bio */}
+          {user.bio && (
+            <p style={{
+              margin: '0 0 1.5rem 0',
+              color: 'var(--text-primary)',
+              lineHeight: '1.6',
+              fontSize: '0.95rem',
+              maxWidth: '400px',
+              borderBottom: '1px dotted var(--border-color)',
+              paddingBottom: '1rem'
+            }}>
+              {user.bio}
+            </p>
+          )}
+
+          {/* Stats */}
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            padding: '1rem'
+            gap: '2.5rem',
+            marginBottom: '1rem'
           }}>
-            {/* Profile Picture */}
-            <div style={{
-              width: '120px',
-              height: '120px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--primary-color)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '3rem',
-              fontWeight: 'bold',
-              marginBottom: '1rem',
-              backgroundImage: user.profile_pic && user.profile_pic !== 'default.jpg' 
-                ? `url(${user.profile_pic})` 
-                : 'none',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}>
-              {(!user.profile_pic || user.profile_pic === 'default.jpg') 
-                && user.username.charAt(0).toUpperCase()}
-            </div>
-
-            {/* User Info */}
-            <h1 style={{ 
-              margin: '0 0 0.5rem 0', 
-              color: 'var(--text-primary)',
-              fontSize: '2rem'
-            }}>
-              {user.username}
-            </h1>
-            
-            {user.email && (
-              <p style={{ 
-                margin: '0 0 1rem 0', 
-                color: 'var(--text-secondary)',
-                fontSize: '1rem'
-              }}>
-                {user.email}
-              </p>
-            )}
-
-            {user.bio && (
-              <p style={{
-                margin: '0 0 1.5rem 0',
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: '700',
                 color: 'var(--text-primary)',
-                lineHeight: '1.5',
-                maxWidth: '500px'
+                marginBottom: '0.25rem'
               }}>
-                {user.bio}
-              </p>
-            )}
-
-            {/* Stats */}
-            <div style={{
-              display: 'flex',
-              gap: '2rem',
-              marginBottom: '1.5rem'
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: 'bold',
-                  color: 'var(--text-primary)'
-                }}>
-                  {posts.length}
-                </div>
-                <div style={{ 
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  {posts.length === 1 ? 'Post' : 'Posts'}
-                </div>
+                {posts.length}
               </div>
-              
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: 'bold',
-                  color: 'var(--text-primary)'
-                }}>
-                  {user.followers_count || 0}
-                </div>
-                <div style={{ 
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Followers
-                </div>
-              </div>
-              
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: 'bold',
-                  color: 'var(--text-primary)'
-                }}>
-                  {user.following_count || 0}
-                </div>
-                <div style={{ 
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Following
-                </div>
+              <div style={{ 
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                textTransform: 'lowercase'
+              }}>
+                post{posts.length !== 1 && 's'}
               </div>
             </div>
-
-            {/* Join Date */}
-            <p style={{ 
-              color: 'var(--text-secondary)',
-              fontSize: '0.875rem',
-              marginBottom: '1.5rem'
-            }}>
-              Joined {formatDate(user.created_at)}
-            </p>
-
-            {/* Follow Button */}
-            {!isOwnProfile && (
-              <button
-                onClick={handleFollow}
-                disabled={isFollowLoading}
-                className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
-                style={{
-                  minWidth: '120px',
-                  opacity: isFollowLoading ? 0.7 : 1
-                }}
-              >
-                {isFollowLoading 
-                  ? 'Loading...' 
-                  : isFollowing 
-                    ? 'Unfollow' 
-                    : 'Follow'
-                }
-              </button>
-            )}
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                marginBottom: '0.25rem'
+              }}>
+                {user.followers_count || 0}
+              </div>
+              <div style={{ 
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                textTransform: 'lowercase'
+              }}>
+                follow
+              </div>
+            </div>
+            
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                marginBottom: '0.25rem'
+              }}>
+                {user.following_count || 0}
+              </div>
+              <div style={{ 
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                textTransform: 'lowercase'
+              }}>
+                following
+              </div>
+            </div>
           </div>
+
+          {/* Follow/Edit Button */}
+          {!isOwnProfile ? (
+            <button
+              onClick={handleFollow}
+              disabled={isFollowLoading}
+              style={{
+                padding: '0.625rem 2rem',
+                backgroundColor: isFollowing ? 'var(--bg-secondary)' : 'var(--primary-color)',
+                color: isFollowing ? 'var(--text-primary)' : 'white',
+                border: isFollowing ? '1px solid var(--border-color)' : 'none',
+                borderRadius: '8px',
+                cursor: isFollowLoading ? 'not-allowed' : 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+                opacity: isFollowLoading ? 0.7 : 1,
+                minWidth: '120px'
+              }}
+            >
+              {isFollowLoading 
+                ? 'Loading...' 
+                : isFollowing 
+                  ? 'Unfollow' 
+                  : 'Follow'
+              }
+            </button>
+          ) : (
+            <button
+              onClick={() => window.location.href = '/settings'}
+              style={{
+                padding: '0.625rem 2rem',
+                backgroundColor: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+                minWidth: '120px'
+              }}
+            >
+              Edit Profile
+            </button>
+          )}
         </div>
 
         {/* Posts Section */}
-        <div className="card">
-          <div style={{ padding: '1rem 1rem 0 1rem' }}>
-            <h3 style={{ 
-              margin: '0 0 1rem 0',
-              color: 'var(--text-primary)'
-            }}>
-              {isOwnProfile ? 'Your Posts' : `${user.username}'s Posts`}
-            </h3>
-          </div>
+        <div style={{
+          borderTop: '2px solid var(--border-color)',
+          paddingTop: '1.5rem'
+        }}>
+          <h3 style={{ 
+            margin: '0 0 1rem 0',
+            color: 'var(--text-primary)',
+            fontSize: '1rem',
+            fontWeight: '600',
+            textTransform: 'lowercase'
+          }}>
+            posts
+          </h3>
 
           {posts.length === 0 ? (
             <div style={{ 
               textAlign: 'center', 
-              padding: '3rem',
-              color: 'var(--text-secondary)'
+              padding: '3rem 1rem',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)'
             }}>
-              <p>
+              <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📝</div>
+              <p style={{ margin: 0 }}>
                 {isOwnProfile 
                   ? "You haven't posted anything yet." 
                   : `${user.username} hasn't posted anything yet.`
@@ -292,63 +336,85 @@ const Profile = () => {
               </p>
             </div>
           ) : (
-            <div className="posts-list">
-              {posts.map((post, index) => (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '1rem'
+            }}>
+              {posts.map((post) => (
                 <div 
                   key={post.id} 
                   style={{
-                    padding: '1rem',
-                    borderBottom: index < posts.length - 1 ? '1px solid var(--border-color)' : 'none'
+                    position: 'relative',
+                    aspectRatio: '1',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {/* Post Date */}
-                  <div style={{
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '0.5rem'
-                  }}>
-                    {formatPostDate(post.created_at)}
-                  </div>
-
-                  {/* Post Content */}
-                  <div style={{
-                    marginBottom: '1rem',
-                    lineHeight: '1.5',
-                    color: 'var(--text-primary)'
-                  }}>
-                    {post.content}
-                  </div>
-
                   {/* Post Image */}
-                  {post.image_url && (
-                    <div style={{ marginBottom: '1rem' }}>
-                      <img
-                        src={post.image_url}
-                        alt="Post content"
-                        style={{
-                          width: '100%',
-                          borderRadius: 'var(--border-radius)',
-                          maxHeight: '400px',
-                          objectFit: 'cover'
-                        }}
-                      />
+                  {post.image_url ? (
+                    <img
+                      src={post.image_url}
+                      alt="Post content"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '1rem',
+                      backgroundColor: 'var(--bg-secondary)'
+                    }}>
+                      <p style={{
+                        color: 'var(--text-primary)',
+                        fontSize: '0.875rem',
+                        lineHeight: '1.4',
+                        textAlign: 'center',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical',
+                        margin: 0
+                      }}>
+                        {post.content}
+                      </p>
                     </div>
                   )}
 
-                  {/* Post Stats */}
+                  {/* Overlay with stats */}
                   <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: '0.75rem',
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '1.5rem',
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)'
+                    gap: '1rem',
+                    fontSize: '0.75rem',
+                    color: 'white'
                   }}>
-                    <span>
-                      {post.likes} {post.likes === 1 ? 'like' : 'likes'}
-                    </span>
-                    <span>
-                      {post.comments} {post.comments === 1 ? 'comment' : 'comments'}
-                    </span>
+                    <span>❤️ {post.likes}</span>
+                    <span>💬 {post.comments}</span>
                   </div>
                 </div>
               ))}

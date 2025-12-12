@@ -14,6 +14,8 @@ class Note(db.Model):
     music_image = db.Column(db.String(500))
     spotify_track_id = db.Column(db.String(100))
     spotify_url = db.Column(db.String(500))
+    lyric_snippet = db.Column(db.String(500))  # Specific lyric/part of song
+    timestamp = db.Column(db.String(20))  # Timestamp like "1:23" or "0:45"
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime)
     
@@ -40,7 +42,9 @@ class Note(db.Model):
                 'preview_url': self.music_preview_url,
                 'image': self.music_image,
                 'spotify_track_id': self.spotify_track_id,
-                'spotify_url': self.spotify_url
+                'spotify_url': self.spotify_url,
+                'lyric_snippet': self.lyric_snippet,
+                'timestamp': self.timestamp
             } if self.music_name else None,
             'created_at': self.created_at.isoformat(),
             'expires_at': self.expires_at.isoformat(),

@@ -99,17 +99,48 @@ class SpotifyService:
                 else:
                     tracks_without_preview.append(track_data)
             
-            # Return tracks with previews first, then others
+            # Return tracks with preview URLs first
             tracks = tracks_with_preview + tracks_without_preview
-            
-            return tracks
+            return tracks[:limit]
             
         except requests.exceptions.RequestException as e:
             current_app.logger.error(f"Spotify search error: {str(e)}")
             return []
-        except Exception as e:
-            current_app.logger.error(f"Unexpected Spotify error: {str(e)}")
-            return []
+    
+    @classmethod
+    def get_track_preview(cls, track_id):
+        """
+        Get track details including 30-second preview URL
+        
+        Args:
+            track_id: Spotify track ID
+        
+        Returns:
+            dict: Track details with preview_url
+        """
+        try:
+            token = cls.get_access_token()
+            
+            headers = {'Authorization': f'Bearer {token}'}
+            response = requests.get(f"{cls.BASE_URL}/tracks/{track_id}", headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            item = response.json()
+            return {
+                'id': item['id'],
+                'name': item['name'],
+                'artist': ', '.join([artist['name'] for artist in item['artists']]),
+                'album': item['album']['name'],
+                'preview_url': item.get('preview_url'),
+                'image': item['album']['images'][0]['url'] if item['album']['images'] else None,
+                'spotify_url': item['external_urls']['spotify'],
+                'duration_ms': item['duration_ms'],
+                'preview_duration': 30  # Spotify previews are always 30 seconds
+            }
+            
+        except requests.exceptions.RequestException as e:
+            current_app.logger.error(f"Spotify track preview error: {str(e)}")
+            return None
     
     @classmethod
     def get_track(cls, track_id):

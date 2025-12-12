@@ -5,7 +5,8 @@
   border-bottom: 1px solid var(--border-color);
   position: relative;
   z-index: 1;
-  margin-top: 60px; /* Space for navbar */
+  margin-top: 60px;
+  transition: background-color var(--transition-normal);
 }
 
 .notes-bar {
@@ -57,12 +58,21 @@
   position: relative;
   border: 3px solid transparent;
   background-clip: padding-box;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+  transition: all var(--transition-normal);
+}
+
+[data-theme="dark"] .note-avatar {
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
 }
 
 .note-item:hover .note-avatar {
-  transform: scale(1.05);
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+}
+
+[data-theme="dark"] .note-item:hover .note-avatar {
+  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.5);
 }
 
 /* Gradient ring for notes with music */
@@ -141,22 +151,36 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+[data-theme="dark"] .notes-modal-overlay {
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 .notes-modal {
   background-color: var(--bg-card);
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-lg);
   width: 90%;
   max-width: 500px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  animation: fadeInScale 0.3s ease-out;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .notes-modal {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  border-color: var(--border-light);
 }
 
 .notes-modal-header {
@@ -181,8 +205,19 @@
   cursor: pointer;
   line-height: 1;
   padding: 0;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notes-modal-header button:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  transform: rotate(90deg);
 }
 
 .notes-modal-body {
@@ -288,7 +323,7 @@
   gap: 1rem;
   padding: 0.75rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--transition-fast);
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -298,6 +333,12 @@
 
 .music-result-item:hover {
   background-color: var(--bg-tertiary);
+  transform: translateX(4px);
+  padding-left: 1rem;
+}
+
+[data-theme="dark"] .music-result-item:hover {
+  background-color: var(--bg-hover);
 }
 
 .music-result-item img {
@@ -537,29 +578,36 @@
 
 /* Note Dialog */
 .note-dialog {
-  background: linear-gradient(180deg, rgba(40, 40, 40, 0.98) 0%, rgba(20, 20, 20, 0.98) 100%);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
+  background: var(--bg-modal);
+  backdrop-filter: blur(24px);
+  border-radius: 24px;
   max-width: 400px;
   width: 90%;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
   position: relative;
   display: flex;
   flex-direction: column;
   max-height: 90vh;
+  border: 1px solid var(--border-light);
+  animation: fadeInScale 0.3s ease-out;
+}
+
+[data-theme="dark"] .note-dialog {
+  background: rgba(20, 20, 20, 0.95);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.9);
 }
 
 .note-dialog-close {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  background: rgba(255, 255, 255, 0.1);
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   font-size: 24px;
   cursor: pointer;
@@ -567,11 +615,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .note-dialog-close:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05) rotate(90deg);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="light"] .note-dialog-close {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .note-dialog-close:hover {
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .note-dialog-text {
@@ -623,4 +683,214 @@
 .note-dialog-song-info span {
   color: rgba(255, 255, 255, 0.7);
   font-size: 15px;
+}
+/* Lyric Annotation Section in Create Modal */
+.lyric-annotation-section {
+  background: linear-gradient(135deg, rgba(29, 185, 84, 0.05), rgba(30, 215, 96, 0.05));
+  border: 1px solid rgba(29, 185, 84, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.annotation-header h3 {
+  color: #1DB954;
+  font-size: 1rem;
+  margin: 0 0 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.annotation-header p {
+  margin: 0;
+}
+
+/* Lyric Annotation Display in Dialog */
+.lyric-annotation-display {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.annotation-timestamp {
+  display: inline-block;
+  background: linear-gradient(135deg, #1DB954, #1ed760);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(29, 185, 84, 0.3);
+}
+
+.annotation-lyric {
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #1DB954;
+  padding: 15px 20px;
+  border-radius: 8px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+  line-height: 1.6;
+  position: relative;
+}
+
+.quote-icon {
+  color: #1DB954;
+  font-size: 24px;
+  font-weight: bold;
+  opacity: 0.5;
+  vertical-align: middle;
+  margin: 0 4px;
+}
+/* Music Player Section */
+.music-player-section {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(168, 85, 247, 0.05));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.player-header h4 {
+  color: #6366F1;
+  font-size: 1rem;
+  margin: 0 0 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-header p {
+  margin: 0;
+}
+
+.player-controls {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.play-pause-btn,
+.capture-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.play-pause-btn {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+}
+
+.play-pause-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.capture-btn {
+  background: linear-gradient(135deg, #1DB954, #1ed760);
+  color: white;
+}
+
+.capture-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 185, 84, 0.4);
+}
+
+.capture-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.seek-bar-container {
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.seek-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.seek-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #6366F1, #8B5CF6);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.seek-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  background: white;
+  border: 2px solid #6366F1;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: left 0.1s linear;
+}
+
+.time-display {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+}
+/* Full Song Player */
+.full-song-player {
+  margin: 15px 0;
+}
+
+.full-song-player iframe {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.divider-text {
+  text-align: center;
+  margin: 20px 0;
+  position: relative;
+}
+
+.divider-text::before,
+.divider-text::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+}
+
+.divider-text::before {
+  left: 0;
+}
+
+.divider-text::after {
+  right: 0;
+}
+
+.divider-text span {
+  background: white;
+  padding: 0 15px;
+  color: #6366F1;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }

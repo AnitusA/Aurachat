@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSocket } from '../contexts/SocketContext';
 import api from '../services/api';
 
 const Search = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { sendMessage } = useSocket();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -39,11 +41,8 @@ const Search = () => {
     }
 
     try {
-      // Send an initial message to start the conversation
-      const response = await api.post('/messages', {
-        receiver_id: targetUser.id,
-        content: `Hi ${targetUser.username}! I found you through search.`
-      });
+      // Send an initial message to start the conversation via socket
+      sendMessage(targetUser.id, `Hi ${targetUser.username}! I found you through search.`);
 
       // Navigate to messages page
       navigate('/messages');

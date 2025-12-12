@@ -15,8 +15,15 @@ const Notes = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
+  const [previewDuration, setPreviewDuration] = useState(30); // Default 30 seconds
+  const [lyricSnippet, setLyricSnippet] = useState('');
+  const [timestamp, setTimestamp] = useState('');
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
   const searchTimeout = useRef(null);
   const audioRef = useRef(null);
+  const audioTimeoutRef = useRef(null);
+  const previewAudioRef = useRef(null);
 
   useEffect(() => {
     fetchNotes();
@@ -29,6 +36,10 @@ const Notes = () => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
+      }
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current = null;
       }
     };
   }, []);
@@ -74,6 +85,76 @@ const Notes = () => {
     }, 500);
   };
 
+  const togglePreview = () => {
+    if (!selectedMusic || !selectedMusic.preview_url) {
+      alert('No preview available for this track');
+      return;
+    }
+
+    if (isPreviewPlaying) {
+      // Pause
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        setIsPreviewPlaying(false);
+      }
+    } else {
+      // Play
+      if (!previewAudioRef.current) {
+        const audio = new Audio(selectedMusic.preview_url);
+        previewAudioRef.current = audio;
+
+        // Update current time as it plays
+        audio.ontimeupdate = () => {
+          setCurrentTime(audio.currentTime);
+        };
+
+        audio.onended = () => {
+          setIsPreviewPlaying(false);
+          setCurrentTime(0);
+        };
+
+        audio.onerror = () => {
+          alert('Error loading preview');
+          setIsPreviewPlaying(false);
+        };
+      }
+
+      previewAudioRef.current.play()
+        .then(() => setIsPreviewPlaying(true))
+        .catch((error) => {
+          console.error('Playback error:', error);
+          alert('Could not play preview');
+        });
+    }
+  };
+
+  const captureTimestamp = () => {
+    if (previewAudioRef.current) {
+      const minutes = Math.floor(currentTime / 60);
+      const seconds = Math.floor(currentTime % 60);
+      const formattedTime = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      setTimestamp(formattedTime);
+    }
+  };
+
+  const seekPreview = (e) => {
+    if (previewAudioRef.current) {
+      const seekBar = e.currentTarget;
+      const rect = seekBar.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const percentage = clickX / rect.width;
+      const newTime = percentage * previewAudioRef.current.duration;
+      previewAudioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleCreateNote = async () => {
     if (!noteContent.trim() && !selectedMusic) {
       return;
@@ -89,7 +170,9 @@ const Notes = () => {
           music_preview_url: selectedMusic.preview_url,
           music_image: selectedMusic.image,
           spotify_track_id: selectedMusic.id,
-          spotify_url: selectedMusic.spotify_url
+          spotify_url: selectedMusic.spotify_url,
+          lyric_snippet: lyricSnippet.trim() || null,
+          timestamp: timestamp.trim() || null
         })
       };
 
@@ -100,7 +183,17 @@ const Notes = () => {
       setSelectedMusic(null);
       setSearchQuery('');
       setSearchResults([]);
+      setLyricSnippet('');
+      setTimestamp('');
       setShowCreateModal(false);
+
+      // Stop and cleanup preview audio
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current = null;
+      }
+      setIsPreviewPlaying(false);
+      setCurrentTime(0);
       
       // Refresh notes
       fetchNotes();
@@ -127,6 +220,10 @@ const Notes = () => {
     if (audioRef.current) {
       audioRef.current.pause();
       setCurrentlyPlaying(null);
+    }
+    if (audioTimeoutRef.current) {
+      clearTimeout(audioTimeoutRef.current);
+      audioTimeoutRef.current = null;
     }
   };
 
@@ -160,7 +257,16 @@ const Notes = () => {
       playPromise
         .then(() => {
           setCurrentlyPlaying(noteId);
-          console.log('Playing preview:', previewUrl);
+          console.log(`Playing preview (${previewDuration}s):`, previewUrl);
+          
+          // Auto-stop after configured duration
+          audioTimeoutRef.current = setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current = null;
+              setCurrentlyPlaying(null);
+            }
+          }, previewDuration * 1000);
         })
         .catch((error) => {
           console.error('Playback error:', error);
@@ -173,6 +279,10 @@ const Notes = () => {
     audio.onended = () => {
       setCurrentlyPlaying(null);
       audioRef.current = null;
+      if (audioTimeoutRef.current) {
+        clearTimeout(audioTimeoutRef.current);
+        audioTimeoutRef.current = null;
+      }
     };
 
     // Handle errors
@@ -181,6 +291,10 @@ const Notes = () => {
       alert('Error loading preview. The track might not have a preview available.');
       setCurrentlyPlaying(null);
       audioRef.current = null;
+      if (audioTimeoutRef.current) {
+        clearTimeout(audioTimeoutRef.current);
+        audioTimeoutRef.current = null;
+      }
     };
   };
 
@@ -278,13 +392,192 @@ const Notes = () => {
                     <strong>{selectedMusic.name}</strong>
                     <span>{selectedMusic.artist}</span>
                   </div>
-                  <button onClick={() => setSelectedMusic(null)}>×</button>
+                  <button onClick={() => {
+                    setSelectedMusic(null);
+                    setLyricSnippet('');
+                    setTimestamp('');
+                    if (previewAudioRef.current) {
+                      previewAudioRef.current.pause();
+                      previewAudioRef.current = null;
+                    }
+                    setIsPreviewPlaying(false);
+                    setCurrentTime(0);
+                  }}>×</button>
+                </div>
+              )}
+
+              {/* Music Player - Only show when music is selected and has preview */}
+              {selectedMusic && selectedMusic.preview_url && (
+                <div className="music-player-section">
+                  <div className="player-header">
+                    <h4>🎵 Listen & Set Timestamp</h4>
+                    <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>
+                      Play the full song or use quick preview to capture the moment
+                    </p>
+                  </div>
+
+                  {/* Full Song Player */}
+                  <div className="full-song-player">
+                    <iframe
+                      src={`https://open.spotify.com/embed/track/${selectedMusic.id}?utm_source=generator&theme=0`}
+                      width="100%"
+                      height="152"
+                      frameBorder="0"
+                      allowFullScreen
+                      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                      loading="lazy"
+                      style={{ borderRadius: '12px' }}
+                    ></iframe>
+                    <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '8px', textAlign: 'center' }}>
+                      ⬆️ Full song player - Listen and note the timestamp manually
+                    </p>
+                  </div>
+
+                  <div className="divider-text">
+                    <span>OR use quick preview</span>
+                  </div>
+
+                  <div className="player-controls">
+                    <button 
+                      className="play-pause-btn"
+                      onClick={togglePreview}
+                    >
+                      {isPreviewPlaying ? '⏸️ Pause' : '▶️ Play 30s Preview'}
+                    </button>
+
+                    <button 
+                      className="capture-btn"
+                      onClick={captureTimestamp}
+                      disabled={!isPreviewPlaying && currentTime === 0}
+                    >
+                      📍 Capture Time
+                    </button>
+                  </div>
+
+                  {/* Seek Bar */}
+                  <div className="seek-bar-container" onClick={seekPreview}>
+                    <div className="seek-bar">
+                      <div 
+                        className="seek-progress" 
+                        style={{ 
+                          width: previewAudioRef.current 
+                            ? `${(currentTime / previewAudioRef.current.duration) * 100}%` 
+                            : '0%' 
+                        }}
+                      />
+                      <div 
+                        className="seek-handle"
+                        style={{ 
+                          left: previewAudioRef.current 
+                            ? `${(currentTime / previewAudioRef.current.duration) * 100}%` 
+                            : '0%' 
+                        }}
+                      />
+                    </div>
+                    <div className="time-display">
+                      <span>{formatTime(currentTime)}</span>
+                      <span>
+                        {previewAudioRef.current ? formatTime(previewAudioRef.current.duration || 30) : '0:30'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show Spotify embed if no preview available */}
+              {selectedMusic && !selectedMusic.preview_url && (
+                <div className="music-player-section">
+                  <div className="player-header">
+                    <h4>🎵 Listen & Set Timestamp</h4>
+                    <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>
+                      Listen to the full song and manually enter the timestamp below
+                    </p>
+                  </div>
+
+                  <div className="full-song-player">
+                    <iframe
+                      src={`https://open.spotify.com/embed/track/${selectedMusic.id}?utm_source=generator&theme=0`}
+                      width="100%"
+                      height="152"
+                      frameBorder="0"
+                      allowFullScreen
+                      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                      loading="lazy"
+                      style={{ borderRadius: '12px' }}
+                    ></iframe>
+                  </div>
+                </div>
+              )}
+
+              {/* Lyric Annotation - Only show when music is selected */}
+              {selectedMusic && (
+                <div className="lyric-annotation-section">
+                  <div className="annotation-header">
+                    <h3>📝 Annotate a Specific Part</h3>
+                    <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '5px' }}>
+                      Highlight your favorite line or moment in this song
+                    </p>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>
+                      Lyric or Part of Song
+                      <span style={{ color: '#999', fontWeight: 'normal', marginLeft: '5px' }}>
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={lyricSnippet}
+                      onChange={(e) => setLyricSnippet(e.target.value)}
+                      placeholder='e.g., "Never gonna give you up..."'
+                      maxLength={200}
+                    />
+                    <small>{lyricSnippet.length}/200</small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      Timestamp
+                      <span style={{ color: '#999', fontWeight: 'normal', marginLeft: '5px' }}>
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={timestamp}
+                      onChange={(e) => setTimestamp(e.target.value)}
+                      placeholder="e.g., 1:23 or 0:45"
+                      maxLength={10}
+                    />
+                    <small style={{ color: '#666' }}>
+                      Format: M:SS (e.g., 1:23 for 1 minute 23 seconds)
+                    </small>
+                  </div>
                 </div>
               )}
 
               {/* Music Search */}
               {!selectedMusic && (
                 <>
+                  <div className="form-group">
+                    <label>Preview Duration (seconds)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input
+                        type="range"
+                        min="10"
+                        max="30"
+                        value={previewDuration}
+                        onChange={(e) => setPreviewDuration(parseInt(e.target.value))}
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ fontWeight: 'bold', minWidth: '40px' }}>{previewDuration}s</span>
+                    </div>
+                    <small style={{ color: '#666' }}>
+                      Set how long music previews play (10-30 seconds)
+                    </small>
+                  </div>
+                  
                   <div className="form-group">
                     <label>Add Music from Spotify</label>
                     <input
@@ -377,6 +670,24 @@ const Notes = () => {
                 <div className="note-dialog-song-info">
                   <strong>{showNoteDialog.music.name}</strong>
                   <span>{showNoteDialog.music.artist}</span>
+                  
+                  {/* Show lyric annotation if exists */}
+                  {(showNoteDialog.music.lyric_snippet || showNoteDialog.music.timestamp) && (
+                    <div className="lyric-annotation-display">
+                      {showNoteDialog.music.timestamp && (
+                        <div className="annotation-timestamp">
+                          ⏱️ {showNoteDialog.music.timestamp}
+                        </div>
+                      )}
+                      {showNoteDialog.music.lyric_snippet && (
+                        <div className="annotation-lyric">
+                          <span className="quote-icon">"</span>
+                          {showNoteDialog.music.lyric_snippet}
+                          <span className="quote-icon">"</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

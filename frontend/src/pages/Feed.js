@@ -13,11 +13,41 @@ const Feed = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [commentInputs, setCommentInputs] = useState({});
   const [isCommenting, setIsCommenting] = useState({});
+  const [viewedShorts, setViewedShorts] = useState(() => {
+    // Load viewed shorts from localStorage
+    const saved = localStorage.getItem('viewedShorts');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [searchQuery, setSearchQuery] = useState('#shorts');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchPosts();
     fetchShorts();
   }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchShorts(searchQuery, true);
+    setIsRefreshing(false);
+  };
+
+  const handleClearHistory = () => {
+    if (window.confirm('Clear your viewing history? This will show all shorts again.')) {
+      setViewedShorts([]);
+      localStorage.removeItem('viewedShorts');
+      fetchShorts(searchQuery, false);
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchShorts(searchQuery, true);
+  };
 
   const fetchPosts = async () => {
     try {
@@ -30,12 +60,12 @@ const Feed = () => {
     }
   };
 
-  const fetchShorts = async () => {
+  const fetchShorts = async (query = searchQuery, skipViewed = true) => {
     try {
-      const response = await api.get('/youtube/shorts?max_results=20');
+      const response = await api.get(`/youtube/shorts?max_results=30&query=${encodeURIComponent(query)}`);
       if (response.data.shorts) {
-        // Convert shorts to post-like format - only showing shorts
-        const shortsAsPosts = response.data.shorts.map(short => ({
+        // Convert shorts to post-like format
+        let shortsAsPosts = response.data.shorts.map(short => ({
           id: `short_${short.id}`,
           type: 'short',
           content: short.title,
@@ -52,7 +82,23 @@ const Feed = () => {
           is_liked: false,
           comments_list: []
         }));
+
+        // Filter out viewed shorts if enabled
+        if (skipViewed) {
+          shortsAsPosts = shortsAsPosts.filter(short => !viewedShorts.includes(short.video_id));
+        }
+
         setShorts(shortsAsPosts);
+
+        // Auto-mark first batch as viewed after 10 seconds
+        setTimeout(() => {
+          const newViewedIds = shortsAsPosts.map(s => s.video_id);
+          const updatedViewed = [...new Set([...viewedShorts, ...newViewedIds])];
+          // Keep only last 500 viewed shorts to prevent memory issues
+          const limitedViewed = updatedViewed.slice(-500);
+          setViewedShorts(limitedViewed);
+          localStorage.setItem('viewedShorts', JSON.stringify(limitedViewed));
+        }, 10000);
       }
     } catch (error) {
       console.error('Failed to fetch shorts:', error);
@@ -143,6 +189,95 @@ const Feed = () => {
       overflowX: 'hidden'
     }}>
       <div className="container" style={{ maxWidth: '600px', margin: '0 auto' }}>
+        
+        {/* Filter Controls */}
+        <div className="card mb-4" style={{ padding: '1.5rem' }}>
+          <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>🎬 YouTube Shorts Feed</h3>
+          
+          <form onSubmit={handleSearch} style={{ marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                placeholder="Search topic (e.g., #shorts, gaming, music)"
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)'
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: 'var(--primary-color)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 'var(--border-radius)',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+              >
+                Search
+              </button>
+            </div>
+          </form>
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: isRefreshing ? '#ccc' : '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--border-radius)',
+                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600'
+              }}
+            >
+              {isRefreshing ? '🔄 Refreshing...' : '🔄 Refresh Feed'}
+            </button>
+
+            <button
+              onClick={handleClearHistory}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--border-radius)',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '600'
+              }}
+            >
+              🗑️ Clear History
+            </button>
+
+            <div style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: 'var(--border-radius)',
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              👁️ Viewed: {viewedShorts.length} shorts
+            </div>
+          </div>
+
+          <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            💡 Tip: Shorts you've seen are automatically hidden. Use "Clear History" to see them again.
+          </p>
+        </div>
         
         {/* Only Show YouTube Shorts */}
         {shorts.length === 0 ? (

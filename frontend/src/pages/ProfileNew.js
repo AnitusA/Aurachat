@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
 const Profile = () => {
   const { username } = useParams();
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
-  const [commentInputs, setCommentInputs] = useState({});
-  const [isCommenting, setIsCommenting] = useState({});
-  const [showFollowers, setShowFollowers] = useState(false);
-  const [showFollowing, setShowFollowing] = useState(false);
-  const [followersList, setFollowersList] = useState([]);
-  const [followingList, setFollowingList] = useState([]);
-  const [isLoadingLists, setIsLoadingLists] = useState(false);
 
   const isOwnProfile = !username || username === currentUser?.username;
   const profileUsername = username || currentUser?.username;
@@ -47,99 +41,6 @@ const Profile = () => {
       console.error('Failed to fetch user posts:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleLike = async (postId) => {
-    try {
-      const response = await api.post(`/posts/${postId}/like`);
-      
-      setPosts(posts.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              is_liked: response.data.is_liked,
-              likes: response.data.likes_count
-            }
-          : post
-      ));
-    } catch (error) {
-      console.error('Failed to like post:', error);
-    }
-  };
-
-  const fetchFollowers = async () => {
-    setIsLoadingLists(true);
-    try {
-      const response = await api.get(`/users/followers?user_id=${user.id}`);
-      setFollowersList(response.data.followers || []);
-      setShowFollowers(true);
-      setShowFollowing(false);
-    } catch (error) {
-      console.error('Failed to fetch followers:', error);
-    } finally {
-      setIsLoadingLists(false);
-    }
-  };
-
-  const fetchFollowing = async () => {
-    setIsLoadingLists(true);
-    try {
-      const response = await api.get(`/users/following?user_id=${user.id}`);
-      setFollowingList(response.data.following || []);
-      setShowFollowing(true);
-      setShowFollowers(false);
-    } catch (error) {
-      console.error('Failed to fetch following:', error);
-    } finally {
-      setIsLoadingLists(false);
-    }
-  };
-
-  const startConversation = async (targetUser) => {
-    try {
-      // Send an initial message to start the conversation
-      await api.post('/messages', {
-        receiver_id: targetUser.id,
-        content: `Hi ${targetUser.username}! I found you on your profile.`
-      });
-
-      // Navigate to messages page
-      window.location.href = '/messages';
-    } catch (error) {
-      console.error('Failed to start conversation:', error);
-      alert('Failed to start conversation. Please try again.');
-    }
-  };
-
-  const handleAddComment = async (e, postId) => {
-    e.preventDefault();
-    const commentText = commentInputs[postId]?.trim();
-    if (!commentText) return;
-
-    setIsCommenting({ ...isCommenting, [postId]: true });
-    try {
-      const response = await api.post(`/posts/${postId}/comments`, {
-        content: commentText
-      });
-
-      // Update the post with the new comment
-      setPosts(posts.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              comments_list: [...(post.comments_list || []), response.data.comment],
-              comments: (post.comments || 0) + 1
-            }
-          : post
-      ));
-
-      // Clear the input
-      setCommentInputs({ ...commentInputs, [postId]: '' });
-    } catch (error) {
-      console.error('Failed to add comment:', error);
-    } finally {
-      setIsCommenting({ ...isCommenting, [postId]: false });
     }
   };
 
@@ -174,12 +75,9 @@ const Profile = () => {
   const formatPostDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-
-    // Calculate the difference in days
-    const diffTime = now - date;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Today';
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
@@ -217,19 +115,28 @@ const Profile = () => {
   return (
     <div className="profile-page" style={{
       minHeight: 'calc(100vh - var(--navbar-height))',
-      padding: '2rem 0',
+      padding: '2rem 1rem',
       backgroundColor: 'var(--bg-primary)'
     }}>
-      <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <div className="container" style={{ 
+        maxWidth: '900px', 
+        margin: '0 auto',
+        backgroundColor: 'var(--bg-card)',
+        borderRadius: '16px',
+        padding: '2.5rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+      }}>
         
         {/* Profile Header */}
-        <div className="card mb-4">
+        <div style={{
+          marginBottom: '2rem'
+        }}>
+          {/* Top Section: Profile Picture + Info + Stats */}
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            padding: '1rem'
+            gap: '2rem',
+            marginBottom: '1.5rem',
+            alignItems: 'flex-start'
           }}>
             {/* Profile Picture */}
             <div style={{
@@ -243,306 +150,207 @@ const Profile = () => {
               color: 'white',
               fontSize: '3rem',
               fontWeight: 'bold',
-              marginBottom: '1rem',
+              flexShrink: 0,
               backgroundImage: user.profile_pic && user.profile_pic !== 'default.jpg' 
                 ? `url(${user.profile_pic})` 
                 : 'none',
               backgroundSize: 'cover',
-              backgroundPosition: 'center'
+              backgroundPosition: 'center',
+              border: '4px solid var(--bg-card)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
             }}>
               {(!user.profile_pic || user.profile_pic === 'default.jpg') 
                 && user.username.charAt(0).toUpperCase()}
             </div>
 
-            {/* User Info */}
-            <h1 style={{ 
-              margin: '0 0 0.5rem 0', 
-              color: 'var(--text-primary)',
-              fontSize: '2rem'
-            }}>
-              {user.username}
-            </h1>
-            
-            {user.email && (
-              <p style={{ 
-                margin: '0 0 1rem 0', 
-                color: 'var(--text-secondary)',
-                fontSize: '1rem'
-              }}>
-                {user.email}
-              </p>
-            )}
-
-            {user.bio && (
-              <p style={{
-                margin: '0 0 1.5rem 0',
-                color: 'var(--text-primary)',
-                lineHeight: '1.5',
-                maxWidth: '500px'
-              }}>
-                {user.bio}
-              </p>
-            )}
-
-            {/* Stats */}
+            {/* Info and Stats Container */}
             <div style={{
+              flex: 1,
               display: 'flex',
-              gap: '2rem',
-              marginBottom: '1.5rem'
+              flexDirection: 'column',
+              gap: '0.5rem'
             }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: 'bold',
-                  color: 'var(--text-primary)'
-                }}>
-                  {user.posts_count || 0}
-                </div>
-                <div style={{ 
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Posts
-                </div>
-              </div>
-              
-              <div 
-                style={{ textAlign: 'center', cursor: 'pointer' }}
-                onClick={fetchFollowers}
-              >
-                <div style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: 'bold',
-                  color: 'var(--text-primary)'
-                }}>
-                  {user.followers_count || 0}
-                </div>
-                <div style={{ 
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Followers
-                </div>
-              </div>
-              
-              <div 
-                style={{ textAlign: 'center', cursor: 'pointer' }}
-                onClick={fetchFollowing}
-              >
-                <div style={{ 
-                  fontSize: '1.5rem', 
-                  fontWeight: 'bold',
-                  color: 'var(--text-primary)'
-                }}>
-                  {user.following_count || 0}
-                </div>
-                <div style={{ 
-                  fontSize: '0.875rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Following
-                </div>
-              </div>
-            </div>
-
-            {/* Join Date */}
-            <p style={{ 
-              color: 'var(--text-secondary)',
-              fontSize: '0.875rem',
-              marginBottom: '1.5rem'
-            }}>
-              Joined {formatDate(user.created_at)}
-            </p>
-
-            {/* Action Button */}
-            {isOwnProfile ? (
-              <Link 
-                to="/profile/edit"
-                className="btn btn-primary"
-                style={{ textDecoration: 'none' }}
-              >
-                ⚙️ Edit Profile
-              </Link>
-            ) : (
-              <button
-                onClick={handleFollow}
-                disabled={isFollowLoading}
-                className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
-                style={{
-                  minWidth: '120px',
-                  opacity: isFollowLoading ? 0.7 : 1
-                }}
-              >
-                {isFollowLoading 
-                  ? 'Loading...' 
-                  : isFollowing 
-                    ? 'Unfollow' 
-                    : 'Follow'
-                }
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Followers/Following Lists */}
-        {(showFollowers || showFollowing) && (
-          <div className="card mb-4">
-            <div style={{ padding: '1.5rem' }}>
+              {/* Username and Stats Row */}
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '1rem'
+                alignItems: 'flex-start'
               }}>
-                <h3 style={{
-                  margin: 0,
-                  color: 'var(--text-primary)'
-                }}>
-                  {showFollowers ? 'Followers' : 'Following'}
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowFollowers(false);
-                    setShowFollowing(false);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '1.5rem',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary)'
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-
-              {isLoadingLists ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '2rem',
-                  color: 'var(--text-secondary)'
-                }}>
-                  Loading...
-                </div>
-              ) : (
+                {/* Username and Email */}
                 <div>
-                  {(showFollowers ? followersList : followingList).length === 0 ? (
-                    <div style={{
-                      textAlign: 'center',
-                      padding: '2rem',
-                      color: 'var(--text-secondary)'
+                  <h1 style={{ 
+                    margin: '0 0 0.25rem 0', 
+                    color: 'var(--text-primary)',
+                    fontSize: '1.75rem',
+                    fontWeight: '600'
+                  }}>
+                    {user.username}
+                  </h1>
+                  
+                  {/* Email */}
+                  {user.email && (
+                    <p style={{ 
+                      margin: '0', 
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.9rem'
                     }}>
-                      {showFollowers ? 'No followers yet' : 'Not following anyone yet'}
-                    </div>
-                  ) : (
-                    (showFollowers ? followersList : followingList).map((person) => (
-                      <div
-                        key={person.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '1rem',
-                          borderBottom: '1px solid var(--border-color)',
-                          backgroundColor: 'var(--bg-card)',
-                          borderRadius: 'var(--border-radius)',
-                          marginBottom: '0.5rem'
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '1rem',
-                            flex: 1,
-                            cursor: 'pointer'
-                          }}
-                          onClick={() => window.location.href = `/profile/${person.username}`}
-                        >
-                          <div style={{
-                            width: '50px',
-                            height: '50px',
-                            borderRadius: '50%',
-                            backgroundColor: 'var(--primary-color)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '1.2rem',
-                            backgroundImage: person.profile_pic && person.profile_pic !== 'default.jpg'
-                              ? `url(${person.profile_pic})`
-                              : 'none',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center'
-                          }}>
-                            {(!person.profile_pic || person.profile_pic === 'default.jpg')
-                              && person.username?.charAt(0).toUpperCase()}
-                          </div>
-
-                          <div>
-                            <div style={{
-                              fontWeight: '600',
-                              color: 'var(--text-primary)',
-                              marginBottom: '0.25rem'
-                            }}>
-                              @{person.username}
-                            </div>
-                            {person.bio && (
-                              <div style={{
-                                fontSize: '0.875rem',
-                                color: 'var(--text-secondary)',
-                                maxWidth: '300px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                {person.bio}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {person.id !== currentUser?.id && (
-                          <button
-                            onClick={() => startConversation(person)}
-                            className="btn btn-primary"
-                            style={{
-                              padding: '0.5rem 1rem',
-                              fontSize: '0.9rem'
-                            }}
-                          >
-                            💬 Message
-                          </button>
-                        )}
-                      </div>
-                    ))
+                      {user.email}
+                    </p>
                   )}
                 </div>
+
+                {/* Stats */}
+                <div style={{
+                  display: 'flex',
+                  gap: '2rem'
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ 
+                      fontSize: '1.25rem', 
+                      fontWeight: '700',
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>
+                      {posts.length}
+                    </div>
+                    <div style={{ 
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      textTransform: 'lowercase'
+                    }}>
+                      post{posts.length !== 1 && 's'}
+                    </div>
+                  </div>
+                  
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ 
+                      fontSize: '1.25rem', 
+                      fontWeight: '700',
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>
+                      {user.followers_count || 0}
+                    </div>
+                    <div style={{ 
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      textTransform: 'lowercase'
+                    }}>
+                      follow
+                    </div>
+                  </div>
+                  
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ 
+                      fontSize: '1.25rem', 
+                      fontWeight: '700',
+                      color: 'var(--text-primary)',
+                      marginBottom: '0.25rem'
+                    }}>
+                      {user.following_count || 0}
+                    </div>
+                    <div style={{ 
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      textTransform: 'lowercase'
+                    }}>
+                      following
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bio */}
+              {user.bio && (
+                <p style={{
+                  margin: '0.5rem 0 0 0',
+                  color: 'var(--text-primary)',
+                  lineHeight: '1.6',
+                  fontSize: '0.95rem',
+                  borderBottom: '1px dotted var(--border-color)',
+                  paddingBottom: '0.75rem'
+                }}>
+                  {user.bio}
+                </p>
               )}
+
+              {/* Follow/Edit Button */}
+              <div style={{ marginTop: '0.5rem' }}>
+                {!isOwnProfile ? (
+                  <button
+                    onClick={handleFollow}
+                    disabled={isFollowLoading}
+                    style={{
+                      padding: '0.625rem 2rem',
+                      backgroundColor: isFollowing ? 'var(--bg-secondary)' : 'var(--primary-color)',
+                      color: isFollowing ? 'var(--text-primary)' : 'white',
+                      border: isFollowing ? '1px solid var(--border-color)' : 'none',
+                      borderRadius: '8px',
+                      cursor: isFollowLoading ? 'not-allowed' : 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      transition: 'all 0.2s ease',
+                      opacity: isFollowLoading ? 0.7 : 1,
+                      minWidth: '120px'
+                    }}
+                  >
+                    {isFollowLoading 
+                      ? 'Loading...' 
+                      : isFollowing 
+                        ? 'Unfollow' 
+                        : 'Follow'
+                    }
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/settings')}
+                    style={{
+                      padding: '0.625rem 2rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      transition: 'all 0.2s ease',
+                      minWidth: '120px'
+                    }}
+                  >
+                    Edit Profile
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Posts Section */}
-        <div className="card">
-          <div style={{ padding: '1rem 1rem 0 1rem' }}>
-            <h3 style={{ 
-              margin: '0 0 1rem 0',
-              color: 'var(--text-primary)'
-            }}>
-              {isOwnProfile ? 'Your Posts' : `${user.username}'s Posts`}
-            </h3>
-          </div>
+        <div style={{
+          borderTop: '2px solid var(--border-color)',
+          paddingTop: '1.5rem'
+        }}>
+          <h3 style={{ 
+            margin: '0 0 1rem 0',
+            color: 'var(--text-primary)',
+            fontSize: '1rem',
+            fontWeight: '600',
+            textTransform: 'lowercase'
+          }}>
+            posts
+          </h3>
 
           {posts.length === 0 ? (
             <div style={{ 
               textAlign: 'center', 
-              padding: '3rem',
-              color: 'var(--text-secondary)'
+              padding: '3rem 1rem',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)'
             }}>
-              <p>
+              <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📝</div>
+              <p style={{ margin: 0 }}>
                 {isOwnProfile 
                   ? "You haven't posted anything yet." 
                   : `${user.username} hasn't posted anything yet.`
@@ -550,192 +358,85 @@ const Profile = () => {
               </p>
             </div>
           ) : (
-            <div className="posts-list">
-              {posts.map((post, index) => (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '1rem'
+            }}>
+              {posts.map((post) => (
                 <div 
                   key={post.id} 
                   style={{
-                    padding: '1rem',
-                    borderBottom: index < posts.length - 1 ? '1px solid var(--border-color)' : 'none'
+                    position: 'relative',
+                    aspectRatio: '1',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {/* Post Date */}
-                  <div style={{
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '0.5rem'
-                  }}>
-                    {formatPostDate(post.created_at)}
-                  </div>
-
-                  {/* Post Content */}
-                  <div style={{
-                    marginBottom: '1rem',
-                    lineHeight: '1.5',
-                    color: 'var(--text-primary)'
-                  }}>
-                    {post.content}
-                  </div>
-
                   {/* Post Image */}
-                  {post.image_url && (
-                    <div style={{ marginBottom: '1rem' }}>
-                      <img
-                        src={post.image_url}
-                        alt="Post content"
-                        style={{
-                          width: '100%',
-                          borderRadius: 'var(--border-radius)',
-                          maxHeight: '400px',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Like Button */}
-                  <button
-                    onClick={() => handleLike(post.id)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
+                  {post.image_url ? (
+                    <img
+                      src={post.image_url}
+                      alt="Post content"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.5rem',
-                      borderRadius: 'var(--border-radius)',
-                      marginBottom: '1rem',
-                      fontSize: '0.875rem',
-                      color: post.is_liked ? 'var(--primary-color)' : 'var(--text-secondary)',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <span style={{ fontSize: '1.25rem' }}>
-                      {post.is_liked ? '❤️' : '🤍'}
-                    </span>
-                    {post.likes} {post.likes === 1 ? 'like' : 'likes'}
-                  </button>
-
-                  {/* Comments Section */}
-                  {post.comments_list && post.comments_list.length > 0 && (
-                    <div style={{
-                      marginBottom: '1rem',
-                      paddingTop: '1rem',
-                      borderTop: '1px solid var(--border-light)'
+                      justifyContent: 'center',
+                      padding: '1rem',
+                      backgroundColor: 'var(--bg-secondary)'
                     }}>
-                      {post.comments_list.map((comment) => (
-                        <div key={comment.id} style={{
-                          marginBottom: '0.75rem',
-                          padding: '0.75rem',
-                          backgroundColor: 'var(--bg-secondary)',
-                          borderRadius: 'var(--border-radius)',
-                          border: '1px solid var(--border-light)'
-                        }}>
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginBottom: '0.5rem'
-                          }}>
-                            <div style={{
-                              width: '24px',
-                              height: '24px',
-                              borderRadius: '50%',
-                              backgroundColor: 'var(--primary-color)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'white',
-                              fontWeight: 'bold',
-                              fontSize: '0.75rem',
-                              marginRight: '0.5rem',
-                              backgroundImage: comment.author?.profile_pic && comment.author.profile_pic !== 'default.jpg' 
-                                ? `url(${comment.author.profile_pic})` 
-                                : 'none',
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center'
-                            }}>
-                              {(!comment.author?.profile_pic || comment.author.profile_pic === 'default.jpg') 
-                                && (comment.author?.username?.charAt(0).toUpperCase() || 'U')}
-                            </div>
-                            <span style={{
-                              fontWeight: '600',
-                              color: 'var(--text-primary)',
-                              fontSize: '0.875rem'
-                            }}>
-                              {comment.author?.username || 'Unknown User'}
-                            </span>
-                            <span style={{
-                              marginLeft: '0.5rem',
-                              fontSize: '0.75rem',
-                              color: 'var(--text-secondary)'
-                            }}>
-                              {formatPostDate(comment.created_at)}
-                            </span>
-                          </div>
-                          <div style={{
-                            color: 'var(--text-primary)',
-                            lineHeight: '1.4'
-                          }}>
-                            {comment.content}
-                          </div>
-                        </div>
-                      ))}
+                      <p style={{
+                        color: 'var(--text-primary)',
+                        fontSize: '0.875rem',
+                        lineHeight: '1.4',
+                        textAlign: 'center',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical',
+                        margin: 0
+                      }}>
+                        {post.content}
+                      </p>
                     </div>
                   )}
 
-                  {/* Add Comment */}
+                  {/* Overlay with stats */}
                   <div style={{
-                    marginBottom: '1rem'
-                  }}>
-                    <form onSubmit={(e) => handleAddComment(e, post.id)} style={{
-                      display: 'flex',
-                      gap: '0.5rem'
-                    }}>
-                      <input
-                        type="text"
-                        placeholder="Write a comment..."
-                        value={commentInputs[post.id] || ''}
-                        onChange={(e) => setCommentInputs({
-                          ...commentInputs,
-                          [post.id]: e.target.value
-                        })}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem 0.75rem',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: 'var(--border-radius)',
-                          backgroundColor: 'var(--bg-card)',
-                          color: 'var(--text-primary)',
-                          fontSize: '0.875rem'
-                        }}
-                      />
-                      <button
-                        type="submit"
-                        disabled={!commentInputs[post.id]?.trim() || isCommenting[post.id]}
-                        className="btn btn-secondary"
-                        style={{
-                          padding: '0.5rem 1rem',
-                          fontSize: '0.875rem',
-                          opacity: !commentInputs[post.id]?.trim() ? 0.5 : 1
-                        }}
-                      >
-                        {isCommenting[post.id] ? '...' : 'Comment'}
-                      </button>
-                    </form>
-                  </div>
-
-                  {/* Post Stats */}
-                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: '0.75rem',
+                    background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '1.5rem',
-                    fontSize: '0.875rem',
-                    color: 'var(--text-secondary)'
+                    gap: '1rem',
+                    fontSize: '0.75rem',
+                    color: 'white'
                   }}>
-                    <span>
-                      {post.comments} {post.comments === 1 ? 'comment' : 'comments'}
-                    </span>
+                    <span>❤️ {post.likes}</span>
+                    <span>💬 {post.comments}</span>
                   </div>
                 </div>
               ))}

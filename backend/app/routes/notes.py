@@ -58,7 +58,9 @@ def create_note():
             music_preview_url=data.get('music_preview_url'),
             music_image=data.get('music_image'),
             spotify_track_id=data.get('spotify_track_id'),
-            spotify_url=data.get('spotify_url')
+            spotify_url=data.get('spotify_url'),
+            lyric_snippet=data.get('lyric_snippet'),
+            timestamp=data.get('timestamp')
         )
         
         db.session.add(new_note)
@@ -109,6 +111,20 @@ def search_music():
         tracks = SpotifyService.search_tracks(query, limit)
         
         return jsonify({'tracks': tracks}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@notes_bp.route('/api/spotify/track/<track_id>', methods=['GET'])
+def get_track_preview(track_id):
+    """Get track preview (30-second snippet) for a specific track"""
+    try:
+        track = SpotifyService.get_track_preview(track_id)
+        
+        if not track:
+            return jsonify({'error': 'Track not found'}), 404
+        
+        return jsonify({'track': track}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
